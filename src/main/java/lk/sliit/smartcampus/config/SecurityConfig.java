@@ -31,7 +31,13 @@ public class SecurityConfig {
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/auth/**", "/oauth2/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                // 1. Specifically permit ONLY the login and oauth endpoints
+                .requestMatchers("/auth/token-test", "/auth/health", "/oauth2/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                
+                // 2. REQUIRE authentication for /auth/me
+                .requestMatchers("/auth/me").authenticated() 
+                
+                // 3. Everything else requires login
                 .anyRequest().authenticated()
             )
             .oauth2Login(oauth -> oauth

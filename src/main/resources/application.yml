@@ -32,4 +32,4 @@ app:
   jwt:
     secret: smartcampus_super_secret_key_2026_must_be_long_enough
     expiration: 86400000  # 1 day in ms
-  frontend-redirect: http://localhost:3000/oauth-success
+  frontend-redirect: http://localhost:8081/auth/token-test

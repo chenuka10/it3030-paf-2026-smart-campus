@@ -1,16 +1,15 @@
 package lk.sliit.smartcampus.entity;
 
-
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -28,10 +27,8 @@ public class User {
     @Enumerated(EnumType.STRING)
     private Role role;
 
-    private String provider; // e.g., "GOOGLE"
-
-    private String providerId; // OAuth sub/id
-
+    private String provider;
+    private String providerId;
     private String imageUrl;
 
     @CreationTimestamp

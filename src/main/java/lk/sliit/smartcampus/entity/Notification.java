@@ -1,15 +1,14 @@
 package lk.sliit.smartcampus.entity;
 
-
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
-
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "notifications")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -20,9 +19,7 @@ public class Notification {
     private Long id;
 
     private String title;
-
     private String message;
-
     private boolean isRead;
 
     @ManyToOne(fetch = FetchType.LAZY)

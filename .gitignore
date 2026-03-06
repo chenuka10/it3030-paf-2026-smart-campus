@@ -36,3 +36,15 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Ignore backend build files
+**/target/
+**/.mvn/
+
+# Ignore frontend dependencies and builds
+**/node_modules/
+**/dist/
+
+# Ignore environment variables (Important for security!)
+**/.env
+**/.env.local

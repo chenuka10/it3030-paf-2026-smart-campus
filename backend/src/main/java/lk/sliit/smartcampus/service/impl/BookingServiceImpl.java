@@ -1,0 +1,284 @@
+package lk.sliit.smartcampus.service.impl;
+
+import jakarta.persistence.EntityNotFoundException;
+import lk.sliit.smartcampus.dto.BookingResponseDTO;
+import lk.sliit.smartcampus.dto.CreateBookingRequest;
+import lk.sliit.smartcampus.entity.*;
+import lk.sliit.smartcampus.repository.BookingParticipantRepository;
+import lk.sliit.smartcampus.repository.BookingRepository;
+import lk.sliit.smartcampus.repository.ResourceRepository;
+import lk.sliit.smartcampus.repository.UserRepository;
+import lk.sliit.smartcampus.service.BookingService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Duration;
+import java.time.LocalDate;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+@Transactional
+public class BookingServiceImpl implements BookingService {
+
+    private final BookingRepository bookingRepository;
+    private final BookingParticipantRepository bookingParticipantRepository;
+    private final ResourceRepository resourceRepository;
+    private final UserRepository userRepository;
+
+    @Override
+    public BookingResponseDTO createBooking(CreateBookingRequest request, String userEmail) {
+        User bookingOwner = getUserByEmail(userEmail);
+        Resource resource = getResourceById(request.getResourceId());
+
+        validateBookingRequest(request, resource);
+
+        List<Long> cleanParticipantIds = sanitizeParticipantIds(request.getParticipantIds(), bookingOwner.getId());
+        List<User> participants = getUsersByIds(cleanParticipantIds);
+
+        int attendeesCount = 1 + participants.size();
+        validateCapacity(resource, attendeesCount);
+
+        Booking booking = Booking.builder()
+                .resource(resource)
+                .user(bookingOwner)
+                .bookingDate(request.getBookingDate())
+                .startTime(request.getStartTime())
+                .endTime(request.getEndTime())
+                .purpose(request.getPurpose())
+                .attendeesCount(attendeesCount)
+                .status(Booking.BookingStatus.PENDING)
+                .build();
+
+        Booking savedBooking = bookingRepository.save(booking);
+
+        List<BookingParticipant> bookingParticipants = participants.stream()
+                .map(user -> BookingParticipant.builder()
+                        .booking(savedBooking)
+                        .user(user)
+                        .build())
+                .toList();
+
+        bookingParticipantRepository.saveAll(bookingParticipants);
+        savedBooking.setParticipants(bookingParticipants);
+
+        return mapToResponse(savedBooking);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<BookingResponseDTO> getMyBookings(String userEmail) {
+        User user = getUserByEmail(userEmail);
+        return bookingRepository.findByUserOrderByCreatedAtDesc(user)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BookingResponseDTO getBookingById(Long bookingId, String userEmail, boolean isAdmin) {
+        Booking booking = getBookingEntityById(bookingId);
+
+        if (!isAdmin && !booking.getUser().getEmail().equals(userEmail)) {
+            throw new AccessDeniedException("You are not allowed to view this booking");
+        }
+
+        return mapToResponse(booking);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<BookingResponseDTO> getAllBookings(String status) {
+        List<Booking> bookings;
+
+        if (status == null || status.isBlank()) {
+            bookings = bookingRepository.findAllByOrderByCreatedAtDesc();
+        } else {
+            Booking.BookingStatus bookingStatus = Booking.BookingStatus.valueOf(status.toUpperCase());
+            bookings = bookingRepository.findByStatusOrderByCreatedAtDesc(bookingStatus);
+        }
+
+        return bookings.stream().map(this::mapToResponse).toList();
+    }
+
+    @Override
+    public BookingResponseDTO approveBooking(Long bookingId) {
+        Booking booking = getBookingEntityById(bookingId);
+
+        if (booking.getStatus() != Booking.BookingStatus.PENDING) {
+            throw new IllegalStateException("Only pending bookings can be approved");
+        }
+
+        validateApprovedConflict(booking);
+
+        booking.setStatus(Booking.BookingStatus.APPROVED);
+        booking.setAdminReason(null);
+
+        return mapToResponse(bookingRepository.save(booking));
+    }
+
+    @Override
+    public BookingResponseDTO rejectBooking(Long bookingId, String reason) {
+        Booking booking = getBookingEntityById(bookingId);
+
+        if (booking.getStatus() != Booking.BookingStatus.PENDING) {
+            throw new IllegalStateException("Only pending bookings can be rejected");
+        }
+
+        booking.setStatus(Booking.BookingStatus.REJECTED);
+        booking.setAdminReason(reason);
+
+        return mapToResponse(bookingRepository.save(booking));
+    }
+
+    @Override
+    public BookingResponseDTO cancelBooking(Long bookingId, String userEmail, boolean isAdmin) {
+        Booking booking = getBookingEntityById(bookingId);
+
+        if (!isAdmin && !booking.getUser().getEmail().equals(userEmail)) {
+            throw new AccessDeniedException("You are not allowed to cancel this booking");
+        }
+
+        if (booking.getStatus() == Booking.BookingStatus.REJECTED ||
+            booking.getStatus() == Booking.BookingStatus.CANCELLED) {
+            throw new IllegalStateException("This booking cannot be cancelled");
+        }
+
+        booking.setStatus(Booking.BookingStatus.CANCELLED);
+
+        return mapToResponse(bookingRepository.save(booking));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<BookingResponseDTO> getApprovedBookingsForResource(Long resourceId, LocalDate date) {
+        return bookingRepository.findByResourceAndDateAndStatus(
+                        resourceId,
+                        date,
+                        Booking.BookingStatus.APPROVED
+                ).stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    private void validateBookingRequest(CreateBookingRequest request, Resource resource) {
+        if (resource.getStatus() != Resource.ResourceStatus.ACTIVE) {
+            throw new IllegalStateException("Resource is not available for booking");
+        }
+
+        if (request.getBookingDate().isBefore(LocalDate.now())) {
+            throw new IllegalArgumentException("Booking date cannot be in the past");
+        }
+
+        if (!request.getStartTime().isBefore(request.getEndTime())) {
+            throw new IllegalArgumentException("Start time must be before end time");
+        }
+
+        if (request.getStartTime().isBefore(resource.getAvailableFrom()) ||
+            request.getEndTime().isAfter(resource.getAvailableTo())) {
+            throw new IllegalArgumentException("Booking time is outside the resource availability window");
+        }
+
+        long durationHours = Duration.between(request.getStartTime(), request.getEndTime()).toHours();
+        long durationMinutes = Duration.between(request.getStartTime(), request.getEndTime()).toMinutes();
+
+        if (durationMinutes <= 0) {
+            throw new IllegalArgumentException("Booking duration must be greater than zero");
+        }
+
+        if (durationHours > resource.getMaxBookingHours() ||
+            (durationHours == resource.getMaxBookingHours() && durationMinutes > resource.getMaxBookingHours() * 60L)) {
+            throw new IllegalArgumentException("Booking exceeds the maximum allowed hours for this resource");
+        }
+    }
+
+    private void validateCapacity(Resource resource, int attendeesCount) {
+        if (resource.getCapacity() != null && attendeesCount > resource.getCapacity()) {
+            throw new IllegalArgumentException("Attendee count exceeds resource capacity");
+        }
+    }
+
+    private void validateApprovedConflict(Booking booking) {
+        boolean hasConflict = bookingRepository.existsOverlappingBooking(
+                booking.getResource().getId(),
+                booking.getBookingDate(),
+                booking.getStartTime(),
+                booking.getEndTime(),
+                Booking.BookingStatus.APPROVED
+        );
+
+        if (hasConflict) {
+            throw new IllegalStateException("This booking conflicts with an already approved booking");
+        }
+    }
+
+    private List<Long> sanitizeParticipantIds(List<Long> participantIds, Long bookingOwnerId) {
+        if (participantIds == null) {
+            return Collections.emptyList();
+        }
+
+        return participantIds.stream()
+                .filter(Objects::nonNull)
+                .filter(id -> !id.equals(bookingOwnerId))
+                .distinct()
+                .toList();
+    }
+
+    private List<User> getUsersByIds(List<Long> ids) {
+        if (ids.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<User> users = userRepository.findAllById(ids);
+
+        if (users.size() != ids.size()) {
+            throw new EntityNotFoundException("One or more participant users were not found");
+        }
+
+        return users;
+    }
+
+    private User getUserByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+    }
+
+    private Resource getResourceById(Long resourceId) {
+        return resourceRepository.findById(resourceId)
+                .orElseThrow(() -> new EntityNotFoundException("Resource not found"));
+    }
+
+    private Booking getBookingEntityById(Long bookingId) {
+        return bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new EntityNotFoundException("Booking not found"));
+    }
+
+    private BookingResponseDTO mapToResponse(Booking booking) {
+        List<Long> participantIds = bookingParticipantRepository.findByBookingId(booking.getId())
+                .stream()
+                .map(bp -> bp.getUser().getId())
+                .collect(Collectors.toList());
+
+        return BookingResponseDTO.builder()
+                .id(booking.getId())
+                .resourceId(booking.getResource().getId())
+                .resourceName(booking.getResource().getName())
+                .userId(booking.getUser().getId())
+                .userEmail(booking.getUser().getEmail())
+                .bookingDate(booking.getBookingDate())
+                .startTime(booking.getStartTime())
+                .endTime(booking.getEndTime())
+                .purpose(booking.getPurpose())
+                .attendeesCount(booking.getAttendeesCount())
+                .status(booking.getStatus())
+                .adminReason(booking.getAdminReason())
+                .participantIds(participantIds)
+                .createdAt(booking.getCreatedAt())
+                .updatedAt(booking.getUpdatedAt())
+                .build();
+    }
+}

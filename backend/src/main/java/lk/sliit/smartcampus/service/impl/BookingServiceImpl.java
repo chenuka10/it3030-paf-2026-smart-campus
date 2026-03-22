@@ -3,12 +3,17 @@ package lk.sliit.smartcampus.service.impl;
 import jakarta.persistence.EntityNotFoundException;
 import lk.sliit.smartcampus.dto.BookingResponseDTO;
 import lk.sliit.smartcampus.dto.CreateBookingRequest;
-import lk.sliit.smartcampus.entity.*;
+import lk.sliit.smartcampus.entity.Booking;
+import lk.sliit.smartcampus.entity.BookingParticipant;
+import lk.sliit.smartcampus.entity.Resource;
+import lk.sliit.smartcampus.entity.User;
 import lk.sliit.smartcampus.repository.BookingParticipantRepository;
 import lk.sliit.smartcampus.repository.BookingRepository;
 import lk.sliit.smartcampus.repository.ResourceRepository;
 import lk.sliit.smartcampus.repository.UserRepository;
+import lk.sliit.smartcampus.service.BookingEmailService;
 import lk.sliit.smartcampus.service.BookingService;
+import lk.sliit.smartcampus.service.QrCodeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -16,7 +21,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDate;
-import java.util.*;
+import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -24,10 +33,12 @@ import java.util.stream.Collectors;
 @Transactional
 public class BookingServiceImpl implements BookingService {
 
-    private final BookingRepository bookingRepository;
     private final BookingParticipantRepository bookingParticipantRepository;
     private final ResourceRepository resourceRepository;
     private final UserRepository userRepository;
+    private final BookingRepository bookingRepository;
+    private final QrCodeService qrCodeService;
+    private final BookingEmailService bookingEmailService;
 
     @Override
     public BookingResponseDTO createBooking(CreateBookingRequest request, String userEmail) {
@@ -102,7 +113,9 @@ public class BookingServiceImpl implements BookingService {
             bookings = bookingRepository.findByStatusOrderByCreatedAtDesc(bookingStatus);
         }
 
-        return bookings.stream().map(this::mapToResponse).toList();
+        return bookings.stream()
+                .map(this::mapToResponse)
+                .toList();
     }
 
     @Override
@@ -116,9 +129,21 @@ public class BookingServiceImpl implements BookingService {
         validateApprovedConflict(booking);
 
         booking.setStatus(Booking.BookingStatus.APPROVED);
-        booking.setAdminReason(null);
 
-        return mapToResponse(bookingRepository.save(booking));
+        String qrToken = UUID.randomUUID().toString();
+        booking.setQrToken(qrToken);
+        booking.setQrGeneratedAt(LocalDateTime.now());
+
+        Booking savedBooking = bookingRepository.save(booking);
+
+        String qrPayload = "BOOKING_TOKEN:" + savedBooking.getQrToken();
+        byte[] qrCodeBytes = qrCodeService.generateQrCode(qrPayload, 300, 300);
+
+        bookingEmailService.sendApprovedBookingEmail(savedBooking, qrCodeBytes);
+
+        savedBooking.setQrEmailSentAt(LocalDateTime.now());
+
+        return mapToResponse(bookingRepository.save(savedBooking));
     }
 
     @Override
@@ -144,7 +169,7 @@ public class BookingServiceImpl implements BookingService {
         }
 
         if (booking.getStatus() == Booking.BookingStatus.REJECTED ||
-            booking.getStatus() == Booking.BookingStatus.CANCELLED) {
+                booking.getStatus() == Booking.BookingStatus.CANCELLED) {
             throw new IllegalStateException("This booking cannot be cancelled");
         }
 
@@ -179,19 +204,18 @@ public class BookingServiceImpl implements BookingService {
         }
 
         if (request.getStartTime().isBefore(resource.getAvailableFrom()) ||
-            request.getEndTime().isAfter(resource.getAvailableTo())) {
+                request.getEndTime().isAfter(resource.getAvailableTo())) {
             throw new IllegalArgumentException("Booking time is outside the resource availability window");
         }
 
-        long durationHours = Duration.between(request.getStartTime(), request.getEndTime()).toHours();
         long durationMinutes = Duration.between(request.getStartTime(), request.getEndTime()).toMinutes();
 
         if (durationMinutes <= 0) {
             throw new IllegalArgumentException("Booking duration must be greater than zero");
         }
 
-        if (durationHours > resource.getMaxBookingHours() ||
-            (durationHours == resource.getMaxBookingHours() && durationMinutes > resource.getMaxBookingHours() * 60L)) {
+        if (resource.getMaxBookingHours() != null &&
+                durationMinutes > resource.getMaxBookingHours() * 60L) {
             throw new IllegalArgumentException("Booking exceeds the maximum allowed hours for this resource");
         }
     }

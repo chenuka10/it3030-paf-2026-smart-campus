@@ -46,6 +46,7 @@ public class BookingServiceImpl implements BookingService {
         Resource resource = getResourceById(request.getResourceId());
 
         validateBookingRequest(request, resource);
+        validateCreateConflict(request, resource);
 
         List<Long> cleanParticipantIds = sanitizeParticipantIds(request.getParticipantIds(), bookingOwner.getId());
         List<User> participants = getUsersByIds(cleanParticipantIds);
@@ -227,18 +228,18 @@ public class BookingServiceImpl implements BookingService {
     }
 
     private void validateApprovedConflict(Booking booking) {
-        boolean hasConflict = bookingRepository.existsOverlappingBooking(
-                booking.getResource().getId(),
-                booking.getBookingDate(),
-                booking.getStartTime(),
-                booking.getEndTime(),
-                Booking.BookingStatus.APPROVED
-        );
+    boolean hasConflict = bookingRepository.existsOverlappingBooking(
+            booking.getResource().getId(),
+            booking.getBookingDate(),
+            booking.getStartTime(),
+            booking.getEndTime(),
+            List.of(Booking.BookingStatus.APPROVED)
+    );
 
-        if (hasConflict) {
-            throw new IllegalStateException("This booking conflicts with an already approved booking");
-        }
+    if (hasConflict) {
+        throw new IllegalStateException("This booking conflicts with an already approved booking");
     }
+}
 
     private List<Long> sanitizeParticipantIds(List<Long> participantIds, Long bookingOwnerId) {
         if (participantIds == null) {
@@ -251,6 +252,23 @@ public class BookingServiceImpl implements BookingService {
                 .distinct()
                 .toList();
     }
+
+    private void validateCreateConflict(CreateBookingRequest request, Resource resource) {
+    boolean hasConflict = bookingRepository.existsOverlappingBooking(
+            resource.getId(),
+            request.getBookingDate(),
+            request.getStartTime(),
+            request.getEndTime(),
+            List.of(
+                    Booking.BookingStatus.PENDING,
+                    Booking.BookingStatus.APPROVED
+            )
+    );
+
+    if (hasConflict) {
+        throw new IllegalStateException("This resource is already booked for the selected time range");
+    }
+}
 
     private List<User> getUsersByIds(List<Long> ids) {
         if (ids.isEmpty()) {

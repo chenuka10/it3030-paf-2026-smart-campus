@@ -1,14 +1,58 @@
 @import "tailwindcss";
 
 @theme {
-  /* Brand Colors */
+  /* =========================
+     🎨 BRAND COLOR SYSTEM
+  ========================= */
   --color-brand-dark: #81A6C6;
   --color-brand-primary: #AACDDC;
   --color-brand-indigo: #F3E3D0;
   --color-brand-slate: #D2C4B4;
 
-  /* Animation */
+  /* Extended Palette */
+  --color-brand-light: #F8FAFC;
+  --color-brand-muted: #B8D0DB;
+  --color-brand-accent: #FFB38A;
+  --color-brand-success: #6EE7B7;
+  --color-brand-warning: #FACC15;
+  --color-brand-danger: #F87171;
+
+  /* =========================
+     🌈 GRADIENTS
+  ========================= */
+  --gradient-primary: linear-gradient(135deg, #81A6C6, #AACDDC);
+  --gradient-soft: linear-gradient(135deg, #F3E3D0, #D2C4B4);
+  --gradient-accent: linear-gradient(135deg, #FFB38A, #F87171);
+
+  /* =========================
+     ✨ SHADOWS
+  ========================= */
+  --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.08);
+  --shadow-medium: 0 8px 30px rgba(0, 0, 0, 0.12);
+  --shadow-glow: 0 0 20px rgba(129, 166, 198, 0.5);
+
+  /* =========================
+     🔤 TYPOGRAPHY
+  ========================= */
+  --font-sans: "Inter", sans-serif;
+  --font-display: "Poppins", sans-serif;
+
+  /* =========================
+     📏 SPACING SCALE
+  ========================= */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 2rem;
+  --spacing-xl: 4rem;
+
+  /* =========================
+     🎞️ ANIMATIONS
+  ========================= */
   --animate-fade-in-up: fade-in-up 0.6s ease-out;
+  --animate-fade-in: fade-in 0.5s ease-in;
+  --animate-slide-in: slide-in 0.5s ease-out;
+  --animate-bounce-soft: bounce-soft 1s infinite;
 
   @keyframes fade-in-up {
     from {
@@ -20,10 +64,75 @@
       transform: translateY(0);
     }
   }
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slide-in {
+    from {
+      transform: translateX(-30px);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes bounce-soft {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-6px);
+    }
+  }
+
+  /* =========================
+     🔲 BORDER RADIUS
+  ========================= */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 30px;
 }
 
 @layer base {
   body {
-    @apply bg-brand-dark text-white antialiased;
+    @apply bg-brand-dark text-white antialiased font-sans;
+  }
+
+  h1, h2, h3 {
+    @apply font-display;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-6 py-3 rounded-lg text-white;
+    background: var(--gradient-primary);
+    box-shadow: var(--shadow-soft);
+    transition: all 0.3s ease;
+  }
+
+  .btn-primary:hover {
+    box-shadow: var(--shadow-medium);
+    transform: translateY(-2px);
+  }
+
+  .card {
+    @apply p-6 rounded-xl;
+    background: white;
+    color: black;
+    box-shadow: var(--shadow-soft);
+  }
+
+  .glass {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(12px);
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(255, 255, 255, 0.2);
   }
 }

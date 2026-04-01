@@ -68,12 +68,7 @@ public class UserController {
         return ResponseEntity.ok(Map.of("message", "User deleted successfully"));
     }
 
-    // ── Helper ────────────────────────────────────────────────────────────────
-
-    /**
-     * JwtAuthFilter sets the principal as a plain String (email).
-     * Guard against both String and UserDetails so this works in all cases.
-     */
+   
     private String resolveEmail(Authentication authentication) {
         if (authentication == null) throw new IllegalStateException("Not authenticated");
         Object principal = authentication.getPrincipal();

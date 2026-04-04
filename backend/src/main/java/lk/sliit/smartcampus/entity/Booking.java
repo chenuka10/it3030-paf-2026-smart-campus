@@ -72,4 +72,13 @@ public class Booking {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Column(name = "qr_token", unique = true, length = 120, updatable = false)
+    private String qrToken;
+
+    @Column(name = "qr_generated_at")
+    private LocalDateTime qrGeneratedAt;
+
+    @Column(name = "qr_email_sent_at")
+    private LocalDateTime qrEmailSentAt;
 }

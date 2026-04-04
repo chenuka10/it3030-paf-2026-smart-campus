@@ -81,4 +81,11 @@ public class Booking {
 
     @Column(name = "qr_email_sent_at")
     private LocalDateTime qrEmailSentAt;
+
+    @Column(name = "checked_in", nullable = false)
+    @Builder.Default
+    private Boolean checkedIn = false;
+
+    @Column(name = "checked_in_at")
+    private LocalDateTime checkedInAt;
 }

@@ -1,15 +1,16 @@
 package lk.sliit.smartcampus.repository;
 
-import lk.sliit.smartcampus.entity.Booking;
-import lk.sliit.smartcampus.entity.User;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import lk.sliit.smartcampus.entity.Booking;
+import lk.sliit.smartcampus.entity.User;
 
 public interface BookingRepository extends JpaRepository<Booking, Long> {
 

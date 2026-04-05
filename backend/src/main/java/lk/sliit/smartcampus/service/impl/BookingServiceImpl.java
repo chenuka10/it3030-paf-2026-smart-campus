@@ -1,7 +1,22 @@
 package lk.sliit.smartcampus.service.impl;
 
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import jakarta.persistence.EntityNotFoundException;
 import lk.sliit.smartcampus.dto.BookingResponseDTO;
+import lk.sliit.smartcampus.dto.CheckInResponseDTO;
 import lk.sliit.smartcampus.dto.CreateBookingRequest;
 import lk.sliit.smartcampus.entity.Booking;
 import lk.sliit.smartcampus.entity.BookingParticipant;
@@ -15,18 +30,6 @@ import lk.sliit.smartcampus.service.BookingEmailService;
 import lk.sliit.smartcampus.service.BookingService;
 import lk.sliit.smartcampus.service.QrCodeService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.Duration;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -183,12 +186,52 @@ public class BookingServiceImpl implements BookingService {
     @Transactional(readOnly = true)
     public List<BookingResponseDTO> getApprovedBookingsForResource(Long resourceId, LocalDate date) {
         return bookingRepository.findByResourceAndDateAndStatus(
-                        resourceId,
-                        date,
-                        Booking.BookingStatus.APPROVED
-                ).stream()
+                resourceId,
+                date,
+                Booking.BookingStatus.APPROVED).stream()
                 .map(this::mapToResponse)
                 .toList();
+    }
+
+    @Override
+    public CheckInResponseDTO checkIn(String qrToken) {
+        Booking booking = bookingRepository.findByQrToken(qrToken)
+                .orElseThrow(() -> new EntityNotFoundException("Invalid QR code"));
+
+        if (booking.getStatus() != Booking.BookingStatus.APPROVED) {
+            throw new IllegalStateException("Booking is not approved for check-in");
+        }
+
+        if (!booking.getBookingDate().equals(LocalDate.now())) {
+            throw new IllegalStateException("Booking is not valid for today");
+        }
+
+        LocalTime now = LocalTime.now();
+
+        if (now.isBefore(booking.getStartTime()) || now.isAfter(booking.getEndTime())) {
+            throw new IllegalStateException("Booking is not valid at this time");
+        }
+
+        if (Boolean.TRUE.equals(booking.getCheckedIn())) {
+            throw new IllegalStateException("Booking has already been checked in");
+        }
+
+        booking.setCheckedIn(true);
+        booking.setCheckedInAt(LocalDateTime.now());
+
+        Booking savedBooking = bookingRepository.save(booking);
+
+        return CheckInResponseDTO.builder()
+                .message("Check-in successful")
+                .bookingId(savedBooking.getId())
+                .resourceName(savedBooking.getResource().getName())
+                .userEmail(savedBooking.getUser().getEmail())
+                .bookingDate(savedBooking.getBookingDate())
+                .startTime(savedBooking.getStartTime())
+                .endTime(savedBooking.getEndTime())
+                .checkedIn(savedBooking.getCheckedIn())
+                .checkedInAt(savedBooking.getCheckedInAt())
+                .build();
     }
 
     private void validateBookingRequest(CreateBookingRequest request, Resource resource) {
@@ -228,18 +271,17 @@ public class BookingServiceImpl implements BookingService {
     }
 
     private void validateApprovedConflict(Booking booking) {
-    boolean hasConflict = bookingRepository.existsOverlappingBooking(
-            booking.getResource().getId(),
-            booking.getBookingDate(),
-            booking.getStartTime(),
-            booking.getEndTime(),
-            List.of(Booking.BookingStatus.APPROVED)
-    );
+        boolean hasConflict = bookingRepository.existsOverlappingBooking(
+                booking.getResource().getId(),
+                booking.getBookingDate(),
+                booking.getStartTime(),
+                booking.getEndTime(),
+                List.of(Booking.BookingStatus.APPROVED));
 
-    if (hasConflict) {
-        throw new IllegalStateException("This booking conflicts with an already approved booking");
+        if (hasConflict) {
+            throw new IllegalStateException("This booking conflicts with an already approved booking");
+        }
     }
-}
 
     private List<Long> sanitizeParticipantIds(List<Long> participantIds, Long bookingOwnerId) {
         if (participantIds == null) {
@@ -254,21 +296,19 @@ public class BookingServiceImpl implements BookingService {
     }
 
     private void validateCreateConflict(CreateBookingRequest request, Resource resource) {
-    boolean hasConflict = bookingRepository.existsOverlappingBooking(
-            resource.getId(),
-            request.getBookingDate(),
-            request.getStartTime(),
-            request.getEndTime(),
-            List.of(
-                    Booking.BookingStatus.PENDING,
-                    Booking.BookingStatus.APPROVED
-            )
-    );
+        boolean hasConflict = bookingRepository.existsOverlappingBooking(
+                resource.getId(),
+                request.getBookingDate(),
+                request.getStartTime(),
+                request.getEndTime(),
+                List.of(
+                        Booking.BookingStatus.PENDING,
+                        Booking.BookingStatus.APPROVED));
 
-    if (hasConflict) {
-        throw new IllegalStateException("This resource is already booked for the selected time range");
+        if (hasConflict) {
+            throw new IllegalStateException("This resource is already booked for the selected time range");
+        }
     }
-}
 
     private List<User> getUsersByIds(List<Long> ids) {
         if (ids.isEmpty()) {

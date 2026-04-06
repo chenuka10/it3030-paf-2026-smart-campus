@@ -31,6 +31,16 @@ public class User {
     private String providerId;
     private String imageUrl;
 
+    // New profile fields
+    @Column(name = "phone")
+    private String phone;
+
+    @Column(name = "bio")
+    private String bio;
+
+    @Column(name = "department")
+    private String department;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 

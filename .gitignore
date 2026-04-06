@@ -48,3 +48,5 @@ build/
 # Ignore environment variables (Important for security!)
 **/.env
 **/.env.local
+backend/src/main/resources/application.yml
+backend/src/main/resources/application.yml

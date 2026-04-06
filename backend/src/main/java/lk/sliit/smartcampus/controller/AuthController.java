@@ -1,14 +1,13 @@
 package lk.sliit.smartcampus.controller;
 
-
-import lk.sliit.smartcampus.entity.User;
-import lk.sliit.smartcampus.exception.ResourceNotFoundException;
-import lk.sliit.smartcampus.repository.UserRepository;
+import lk.sliit.smartcampus.dto.UserResponseDTO;
+import lk.sliit.smartcampus.security.CustomOAuth2User;
+import lk.sliit.smartcampus.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.Map;
 
 @RestController
@@ -16,7 +15,42 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AuthController {
 
-    private final UserRepository userRepository;
+    private final UserService userService;
+
+    @GetMapping("/me")
+    public ResponseEntity<?> me(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+        }
+
+        // Resolve email regardless of auth type (JWT UserDetails or OAuth2 session)
+        String email = resolveEmail(authentication);
+        if (email == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Cannot resolve user identity"));
+        }
+
+        UserResponseDTO dto = userService.getUserByEmail(email);
+        return ResponseEntity.ok(dto);
+    }
+
+    private String resolveEmail(Authentication authentication) {
+        Object principal = authentication.getPrincipal();
+
+        // Case 1: JWT filter ran → principal is a String (email) or UserDetails
+        if (principal instanceof UserDetails ud) {
+            return ud.getUsername();
+        }
+        if (principal instanceof String s && s.contains("@")) {
+            return s;
+        }
+
+        // Case 2: OAuth2 session still active → principal is CustomOAuth2User
+        if (principal instanceof CustomOAuth2User oAuth2User) {
+            return oAuth2User.getUser().getEmail();
+        }
+
+        return null;
+    }
 
     @GetMapping("/token-test")
     public ResponseEntity<?> tokenTest(@RequestParam String token) {
@@ -26,29 +60,8 @@ public class AuthController {
         ));
     }
 
-    // ✅ FIXED — @AuthenticationPrincipal is now String (email from JWT)
-    @GetMapping("/me")
-    public ResponseEntity<?> me(@AuthenticationPrincipal String email) {
-        if (email == null) {
-            return ResponseEntity.status(401).body(Map.of(
-                "error", "Token missing or invalid"
-            ));
-        }
-
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + email));
-
-        return ResponseEntity.ok(Map.of(
-            "id",    user.getId(),
-            "name",  user.getName(),
-            "email", user.getEmail(),
-            "role",  user.getRole(),
-            "image", user.getImageUrl() != null ? user.getImageUrl() : ""
-        ));
-    }
-
     @GetMapping("/health")
     public ResponseEntity<?> health() {
-        return ResponseEntity.ok(Map.of("status", "✅ Auth service is running"));
+        return ResponseEntity.ok(Map.of("status", "✅ Auth service running"));
     }
 }

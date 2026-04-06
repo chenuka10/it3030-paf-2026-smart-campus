@@ -28,9 +28,14 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))  // ← CORS handled HERE, inside Security
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
-            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .sessionManagement(s -> s
+                // STATELESS for API calls, but OAuth2 login REQUIRES a session briefly
+                // so we use IF_REQUIRED — the session is created during OAuth2 flow only,
+                // then the JWT takes over for all subsequent API requests
+                .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+            )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                     "/auth/**", "/oauth2/**", "/login/**",

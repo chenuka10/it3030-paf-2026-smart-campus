@@ -1,11 +1,8 @@
 package lk.sliit.smartcampus.entity;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -57,9 +54,12 @@ public class Resource {
     @Column(nullable = false)
     private ResourceStatus status = ResourceStatus.ACTIVE;
 
+    // ✅ FIXED TIME FORMAT
+    @JsonFormat(pattern = "HH:mm")
     @Column(name = "available_from", nullable = false)
     private LocalTime availableFrom;
 
+    @JsonFormat(pattern = "HH:mm")
     @Column(name = "available_to", nullable = false)
     private LocalTime availableTo;
 

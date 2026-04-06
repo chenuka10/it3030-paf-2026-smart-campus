@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 
+
 export default function ResourceListPage() {
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);

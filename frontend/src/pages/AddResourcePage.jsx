@@ -42,7 +42,7 @@ export default function AddResourcePage() {
         maxBookingHours: Number(form.maxBookingHours)
       });
 
-      navigate("/resources");
+      navigate("/resourceslist");
 
     } catch (err) {
       console.error(err); // ✅ see real error in console

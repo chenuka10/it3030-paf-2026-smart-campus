@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'; // ✅ import auth
 const ADMIN_SECTIONS = [
   { label: 'Overview', path: '/admin', exact: true, icon: '▦', desc: 'Dashboard hub' },
   { label: 'Users', path: '/admin/users', icon: '◉', desc: 'Manage members' },
-  { label: 'Resources', path: '/resourceslist', icon: '◫', desc: 'Campus resources' },
+  {  label: 'Resources', path: '/admin/resources', icon: '◫', desc: 'Campus resources' }, 
   { label: 'Notifications', path: '/admin/notifications', icon: '◎', desc: 'Send alerts' },
   { label: 'Reports', path: '/admin/reports', icon: '◈', desc: 'Analytics & logs' },
 ];

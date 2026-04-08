@@ -8,18 +8,16 @@ import OAuthSuccess from './pages/OAuthSuccess';
 // Authenticated
 import Home    from './pages/Home';
 import Profile from './pages/Profile';
+import Resources from './pages/Resources';  // ← ADD THIS IMPORT
  
 // Admin
 import AdminHub           from './pages/admin/AdminHub';
 import AdminUsers         from './pages/admin/AdminUsers';
-import AdminResources     from './pages/admin/AdminResources';
 import AdminNotifications from './pages/admin/AdminNotifications';
 import AdminReports       from './pages/admin/AdminReports';
-
-import ResourceListPage from './pages/ResourceListPage';
-import AddResourcePage from "./pages/AddResourcePage";
-import EditResourcePage from "./pages/EditResourcePage";
-import Resources from './pages/Resources';
+import ResourceListPage   from './pages/admin/ResourceListPage';
+import AddResourcePage    from './pages/admin/AddResourcePage';
+import EditResourcePage   from './pages/admin/EditResourcePage';
 
 function App() {
   return (
@@ -33,28 +31,21 @@ function App() {
           {/* Default → home */}
           <Route path="/" element={<Navigate to="/home" replace />} />
  
-          {/* Authenticated */}
+          {/* Authenticated (no sidebar) */}
           <Route path="/home"    element={<Home />} />
+          <Route path="/resources" element={<Resources />} />  {/* ← Now this will work */}
           <Route path="/profile" element={<Profile />} />
  
-          {/* Admin hub + sub-pages (sidebar auto-appears) */}
-          <Route path="/admin"               element={<AdminHub />} />
-          <Route path="/admin/users"         element={<AdminUsers />} />
-          <Route path="/admin/resources"     element={<AdminResources />} />
+          {/* Admin routes (sidebar appears) */}
+          <Route path="/admin" element={<AdminHub />} />
+          <Route path="/admin/users" element={<AdminUsers />} />
+          <Route path="/admin/resources" element={<ResourceListPage />} />
+          <Route path="/admin/resources/add" element={<AddResourcePage />} />
+          <Route path="/admin/resources/edit/:id" element={<EditResourcePage />} />
           <Route path="/admin/notifications" element={<AdminNotifications />} />
-          <Route path="/admin/reports"       element={<AdminReports />} />
- 
-          {/* Resource pages — uncomment & import when ready */}
-          {/* <Route path="/resources"          element={<ResourceListPage />} /> */}
-          {/* <Route path="/resources/add"      element={<AddResourcePage />} /> */}
-          {/* <Route path="/resources/edit/:id" element={<EditResourcePage />} /> */}
+          <Route path="/admin/reports" element={<AdminReports />} />
 
-          <Route path="/resourceslist" element={<ResourceListPage />} />
-          <Route path="/resources/add" element={<AddResourcePage />} />
-          <Route path="/resources/edit/:id" element={<EditResourcePage />} />
-          <Route path="/resources" element={<Resources />} />
-
-
+          {/* Catch all */}
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>

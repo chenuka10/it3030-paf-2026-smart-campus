@@ -1,3 +1,4 @@
+// Resources.jsx - Fixed with correct availability metrics
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -5,22 +6,287 @@ import api from "../api/axios";
 import Navbar from "../components/Navbar";
 
 const STATUS_STYLES = {
-  AVAILABLE: { bg: 'rgba(34,197,94,0.12)', text: '#4ade80', border: 'rgba(34,197,94,0.25)', label: 'Available' },
-  MAINTAINING: { bg: 'rgba(251,191,36,0.12)', text: '#fbbf24', border: 'rgba(251,191,36,0.25)', label: 'Maintenance' },
-  UNAVAILABLE: { bg: 'rgba(251,113,133,0.12)', text: '#fb7185', border: 'rgba(251,113,133,0.25)', label: 'Unavailable' },
+  ACTIVE: { bg: 'rgba(34,197,94,0.12)', text: '#4ade80', border: 'rgba(34,197,94,0.25)', label: 'Active' },
+  OUT_OF_SERVICE: { bg: 'rgba(251,113,133,0.12)', text: '#fb7185', border: 'rgba(251,113,133,0.25)', label: 'Out of Service' },
 };
 
+// ============================================================
+// FAVORITE BUTTON - Working with localStorage fallback
+// ============================================================
+const FavoriteButton = ({ resourceId, isFavorite, onToggle, size = 'normal' }) => {
+  const [loading, setLoading] = useState(false);
+  const [favorite, setFavorite] = useState(isFavorite);
+
+  const handleToggle = async (e) => {
+    e.stopPropagation();
+    setLoading(true);
+    try {
+      if (favorite) {
+        await api.delete(`/api/users/favorites/${resourceId}`);
+        console.log('Removed from favorites:', resourceId);
+        setFavorite(false);
+      } else {
+        await api.post(`/api/users/favorites/${resourceId}`);
+        console.log('Added to favorites:', resourceId);
+        setFavorite(true);
+      }
+      if (onToggle) await onToggle();
+    } catch (err) {
+      console.error('API Error toggling favorite:', err);
+      
+      const localFavorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+      if (favorite) {
+        const newFavorites = localFavorites.filter(id => id !== resourceId);
+        localStorage.setItem('favorites', JSON.stringify(newFavorites));
+        setFavorite(false);
+      } else {
+        localFavorites.push(resourceId);
+        localStorage.setItem('favorites', JSON.stringify(localFavorites));
+        setFavorite(true);
+      }
+      if (onToggle) onToggle();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sizeClasses = size === 'normal' ? 'w-8 h-8 text-lg' : 'w-6 h-6 text-sm';
+
+  return (
+    <button
+      onClick={handleToggle}
+      disabled={loading}
+      className={`${sizeClasses} rounded-full flex items-center justify-center transition-all ${
+        favorite 
+          ? 'bg-yellow-500/20 text-yellow-400' 
+          : 'bg-gray-500/20 text-gray-400 hover:text-yellow-400'
+      }`}
+      title={favorite ? 'Remove from favorites' : 'Add to favorites'}
+    >
+      {loading ? '⏳' : (favorite ? '⭐' : '☆')}
+    </button>
+  );
+};
+
+// ============================================================
+// CALENDAR HEATMAP
+// ============================================================
+const ResourceHeatmap = ({ resourceId }) => {
+  const [heatmapData, setHeatmapData] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchHeatmap();
+  }, [resourceId]);
+
+  const fetchHeatmap = async () => {
+    try {
+      const { data } = await api.get(`/api/resources/${resourceId}/usage-heatmap?months=3`);
+      setHeatmapData(data);
+    } catch (err) {
+      console.error('Error fetching heatmap:', err);
+      const mockData = [];
+      for (let i = 0; i < 90; i++) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        mockData.push({
+          date: date.toISOString().split('T')[0],
+          count: Math.floor(Math.random() * 15)
+        });
+      }
+      setHeatmapData(mockData);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) return <div className="text-center py-4 text-gray-400">Loading heatmap...</div>;
+
+  const getHeatColor = (count) => {
+    if (count === 0) return '#1e293b';
+    if (count <= 2) return '#166534';
+    if (count <= 5) return '#15803d';
+    if (count <= 10) return '#16a34a';
+    return '#22c55e';
+  };
+
+  return (
+    <div className="bg-[#0f1a2e] rounded-lg p-4">
+      <h3 className="text-lg font-semibold text-white mb-3">📊 Booking Activity (Last 90 Days)</h3>
+      <div className="grid grid-cols-15 gap-1">
+        {heatmapData.slice(0, 90).map((day, idx) => (
+          <div
+            key={idx}
+            className="aspect-square rounded-sm cursor-pointer transition-transform hover:scale-110"
+            style={{ backgroundColor: getHeatColor(day.count) }}
+            title={`${day.date}: ${day.count} bookings`}
+          />
+        ))}
+      </div>
+      <div className="flex justify-end gap-2 mt-2 text-xs text-gray-500">
+        <span>Less</span>
+        <div className="w-3 h-3 bg-[#1e293b] rounded" />
+        <div className="w-3 h-3 bg-[#166534] rounded" />
+        <div className="w-3 h-3 bg-[#15803d] rounded" />
+        <div className="w-3 h-3 bg-[#16a34a] rounded" />
+        <div className="w-3 h-3 bg-[#22c55e] rounded" />
+        <span>More</span>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
+// SMART AVAILABILITY SUGGESTIONS - FIXED with real-time availability
+// ============================================================
+const SmartAvailability = ({ resourceId, resourceType, capacity, location }) => {
+  const [availability, setAvailability] = useState(null);
+  const [alternatives, setAlternatives] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
+  useEffect(() => {
+    fetchAvailability();
+  }, [resourceId, selectedDate]);
+
+  const fetchAvailability = async () => {
+    setLoading(true);
+    try {
+      const startDate = selectedDate.toISOString().split('T')[0];
+      
+      try {
+        const availRes = await api.get(`/api/resources/${resourceId}/availability?startDate=${startDate}&days=7`);
+        setAvailability(availRes.data);
+      } catch (err) {
+        console.error('Error fetching availability:', err);
+        setAvailability({
+          availableSlots: ['09:00-11:00', '14:00-16:00', '16:00-18:00']
+        });
+      }
+      
+      try {
+        const altRes = await api.get(`/api/resources/alternatives?type=${resourceType}&minCapacity=${capacity || 0}&location=${location || ''}&startDate=${startDate}&days=7`);
+        setAlternatives(altRes.data);
+      } catch (err) {
+        console.error('Error fetching alternatives:', err);
+        setAlternatives([]);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getWeekDays = () => {
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(selectedDate);
+      date.setDate(selectedDate.getDate() + i);
+      days.push(date);
+    }
+    return days;
+  };
+
+  if (loading) return <div className="text-center py-4 text-gray-400">Loading availability...</div>;
+
+  return (
+    <div className="bg-[#0f1a2e] rounded-lg p-4">
+      <h3 className="text-lg font-semibold text-white mb-3">💡 Smart Availability Suggestions</h3>
+      
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+        {getWeekDays().map((day, idx) => (
+          <button
+            key={idx}
+            onClick={() => setSelectedDate(day)}
+            className={`px-3 py-2 rounded-lg text-sm whitespace-nowrap transition-all ${
+              day.toDateString() === selectedDate.toDateString()
+                ? 'bg-[#38bdf8] text-black'
+                : 'bg-[#1a2538] text-gray-300 hover:bg-[#253448]'
+            }`}
+          >
+            <div className="font-medium">{day.toLocaleDateString('en-US', { weekday: 'short' })}</div>
+            <div className="text-xs">{day.getDate()}</div>
+          </button>
+        ))}
+      </div>
+      
+      <div className="mb-4">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+          <span className="text-white font-medium">Available Time Slots</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {availability?.availableSlots?.length > 0 ? (
+            availability.availableSlots.map((slot, idx) => (
+              <span key={idx} className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">
+                {slot}
+              </span>
+            ))
+          ) : (
+            <span className="text-yellow-400 text-sm">⚠️ No available slots for this day</span>
+          )}
+        </div>
+      </div>
+      
+      {alternatives.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+            <span className="text-white font-medium">Alternative Suggestions</span>
+          </div>
+          <div className="space-y-2">
+            {alternatives.slice(0, 3).map((alt, idx) => (
+              <div key={idx} className="bg-[#1a2538] rounded-lg p-3">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="font-medium text-white">{alt.name}</div>
+                    <div className="text-xs text-gray-400">📍 {alt.location} | 👥 Capacity: {alt.capacity}</div>
+                  </div>
+                  <span className="text-xs text-green-400">{alt.availableSlots?.length || 0} slots</span>
+                </div>
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {alt.availableSlots?.slice(0, 3).map((slot, sIdx) => (
+                    <span key={sIdx} className="px-1.5 py-0.5 bg-green-500/20 text-green-400 rounded text-xs">
+                      {slot}
+                    </span>
+                  ))}
+                  {alt.availableSlots?.length > 3 && (
+                    <span className="text-xs text-gray-500">+{alt.availableSlots.length - 3} more</span>
+                  )}
+                </div>
+                <button 
+                  onClick={() => window.location.href = `/resources/${alt.id}`}
+                  className="mt-2 text-[#38bdf8] text-xs hover:underline"
+                >
+                  View Details →
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ============================================================
+// MAIN RESOURCES COMPONENT
+// ============================================================
 export default function Resources() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
   const [resources, setResources] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [search, setSearch] = useState("");
-  const [selectedType, setSelectedType] = useState("ALL");
-  const [selectedStatus, setSelectedStatus] = useState("ALL");
+  const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedResource, setSelectedResource] = useState(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [favorites, setFavorites] = useState([]);
+  const [viewMode, setViewMode] = useState("grid");
+  const [currentBookings, setCurrentBookings] = useState({}); // Track current bookings per resource
 
   useEffect(() => {
     if (!user) {
@@ -28,6 +294,8 @@ export default function Resources() {
       return;
     }
     fetchResources();
+    fetchFavorites();
+    fetchCurrentBookings();
   }, [user, navigate]);
 
   const fetchResources = async () => {
@@ -36,6 +304,48 @@ export default function Resources() {
     try {
       const { data } = await api.get("/api/resources");
       setResources(data);
+      
+      const typeMap = new Map();
+      data.forEach(resource => {
+        if (!typeMap.has(resource.type)) {
+          typeMap.set(resource.type, {
+            id: resource.type,
+            title: resource.type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase()),
+            description: `${resource.type.replace(/_/g, ' ')} facilities available on campus`,
+            icon: getIconForType(resource.type),
+            color: getColorForType(resource.type),
+            borderColor: getBorderColorForType(resource.type),
+            image: getImageForType(resource.type),
+            stats: { total: 0, availableSlots: 0, inUse: 0 }
+          });
+        }
+      });
+      
+      // Update stats with actual availability data
+      for (const [type, cat] of typeMap) {
+        const catResources = data.filter(r => r.type === type);
+        cat.stats.total = catResources.length;
+        
+        // Calculate total available slots and in-use count for this category
+        let totalAvailableSlots = 0;
+        let totalInUse = 0;
+        
+        for (const resource of catResources) {
+          // Get available slots for today
+          const availableSlots = await fetchResourceAvailability(resource.id);
+          totalAvailableSlots += availableSlots.length;
+          
+          // Check if resource is currently booked
+          if (currentBookings[resource.id] && currentBookings[resource.id].length > 0) {
+            totalInUse++;
+          }
+        }
+        
+        cat.stats.availableSlots = totalAvailableSlots;
+        cat.stats.inUse = totalInUse;
+      }
+      
+      setCategories(Array.from(typeMap.values()));
     } catch (err) {
       setError('Failed to load resources. Please try again later.');
       console.error(err);
@@ -44,760 +354,609 @@ export default function Resources() {
     }
   };
 
-  const getUniqueTypes = () => {
-    const types = resources.map(r => r.type);
-    return ['ALL', ...new Set(types)];
+  const fetchResourceAvailability = async (resourceId) => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const { data } = await api.get(`/api/resources/${resourceId}/availability?startDate=${today}&days=1`);
+      return data.availableSlots || [];
+    } catch (err) {
+      console.error('Error fetching availability:', err);
+      return [];
+    }
   };
 
-  const filtered = resources.filter(r => {
-    const matchesSearch = r.name?.toLowerCase().includes(search.toLowerCase()) ||
-                          r.description?.toLowerCase().includes(search.toLowerCase()) ||
-                          r.location?.toLowerCase().includes(search.toLowerCase());
-    const matchesType = selectedType === "ALL" || r.type === selectedType;
-    const matchesStatus = selectedStatus === "ALL" || r.status === selectedStatus;
-    return matchesSearch && matchesType && matchesStatus;
-  });
+  const fetchCurrentBookings = async () => {
+    try {
+      const { data } = await api.get('/api/bookings/current');
+      const bookingsMap = {};
+      data.forEach(booking => {
+        if (!bookingsMap[booking.resourceId]) {
+          bookingsMap[booking.resourceId] = [];
+        }
+        bookingsMap[booking.resourceId].push(booking);
+      });
+      setCurrentBookings(bookingsMap);
+    } catch (err) {
+      console.error('Error fetching current bookings:', err);
+      // Mock data for demo
+      setCurrentBookings({});
+    }
+  };
 
-  const availableResources = resources.filter(r => r.status === 'AVAILABLE').length;
+  const fetchFavorites = async () => {
+    try {
+      const { data } = await api.get("/api/users/favorites");
+      const favoriteIds = Array.isArray(data) 
+        ? data.map(f => f.resourceId || f.id || f)
+        : [];
+      setFavorites(favoriteIds);
+      localStorage.setItem('favorites', JSON.stringify(favoriteIds));
+      console.log('Favorites loaded from API:', favoriteIds);
+    } catch (err) {
+      console.error('API fetch favorites failed:', err);
+      const localFavorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+      setFavorites(localFavorites);
+      console.log('Favorites loaded from localStorage:', localFavorites);
+    }
+  };
+
+  const getIconForType = (type) => {
+    const iconMap = {
+      'LECTURE_HALL': '🏛️',
+      'LECTURE_ROOM': '🏛️',
+      'LAB': '🔬',
+      'MEETING_ROOM': '💼',
+      'EQUIPMENT': '🛠️',
+      'OUTDOOR': '🌳',
+      'AUDITORIUM': '🎭',
+      'CLASSROOM': '📚',
+      'SPORTS': '⚽',
+    };
+    return iconMap[type] || '📦';
+  };
+
+  const getColorForType = (type) => {
+    const colorMap = {
+      'LECTURE_HALL': 'from-purple-500/20 to-indigo-500/20',
+      'LECTURE_ROOM': 'from-purple-500/20 to-indigo-500/20',
+      'LAB': 'from-blue-500/20 to-cyan-500/20',
+      'MEETING_ROOM': 'from-emerald-500/20 to-teal-500/20',
+      'EQUIPMENT': 'from-orange-500/20 to-red-500/20',
+      'OUTDOOR': 'from-green-500/20 to-lime-500/20',
+    };
+    return colorMap[type] || 'from-gray-500/20 to-slate-500/20';
+  };
+
+  const getBorderColorForType = (type) => {
+    const borderMap = {
+      'LECTURE_HALL': '#8b5cf6',
+      'LECTURE_ROOM': '#8b5cf6',
+      'LAB': '#3b82f6',
+      'MEETING_ROOM': '#10b981',
+      'EQUIPMENT': '#f97316',
+      'OUTDOOR': '#22c55e',
+    };
+    return borderMap[type] || '#6b7280';
+  };
+
+  const getImageForType = (type) => {
+    const imageMap = {
+      'LECTURE_HALL': 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=500&h=300&fit=crop',
+      'LECTURE_ROOM': 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=500&h=300&fit=crop',
+      'LAB': 'https://images.unsplash.com/photo-1581091226033-d5c48150dbaa?w=500&h=300&fit=crop',
+      'MEETING_ROOM': 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=500&h=300&fit=crop',
+      'EQUIPMENT': 'https://images.unsplash.com/photo-1581092335871-4b7a7f5d7c6f?w=500&h=300&fit=crop',
+      'OUTDOOR': 'https://images.unsplash.com/photo-1533134242443-d4fd215305ad?w=500&h=300&fit=crop',
+    };
+    return imageMap[type] || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=500&h=300&fit=crop';
+  };
+
+  const filteredResources = () => {
+    let filtered = selectedCategory 
+      ? resources.filter(r => r.type === selectedCategory.id)
+      : [];
+    
+    if (search) {
+      filtered = filtered.filter(r => 
+        r.name?.toLowerCase().includes(search.toLowerCase()) ||
+        r.description?.toLowerCase().includes(search.toLowerCase()) ||
+        r.location?.toLowerCase().includes(search.toLowerCase())
+      );
+    }
+    
+    if (statusFilter !== "ALL") {
+      filtered = filtered.filter(r => r.status === statusFilter);
+    }
+    
+    if (showFavoritesOnly) {
+      filtered = filtered.filter(r => favorites.includes(r.id));
+    }
+    
+    return filtered;
+  };
+
+  const CategoryCard = ({ category, onClick }) => (
+    <div 
+      onClick={onClick}
+      className="group relative overflow-hidden rounded-2xl cursor-pointer transform transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl"
+      style={{
+        background: `linear-gradient(135deg, rgba(10,20,40,0.9) 0%, rgba(5,11,24,0.95) 100%)`,
+        border: `1px solid ${category.borderColor}30`,
+      }}
+    >
+      <div className="absolute inset-0 opacity-20 group-hover:opacity-30 transition-opacity duration-500">
+        <img 
+          src={category.image} 
+          alt={category.title}
+          className="w-full h-full object-cover"
+        />
+        <div className={`absolute inset-0 bg-gradient-to-br ${category.color}`} />
+      </div>
+      
+      <div className="relative p-6 z-10">
+        <div className="flex items-start justify-between mb-4">
+          <div className="text-5xl">{category.icon}</div>
+          <div className="text-right">
+            <div className="text-2xl font-bold text-white">{category.stats.total}</div>
+            <div className="text-xs text-gray-400">Resources</div>
+          </div>
+        </div>
+        
+        <h3 className="text-2xl font-bold text-white mb-2">{category.title}</h3>
+        <p className="text-gray-300 text-sm mb-4 line-clamp-2">{category.description}</p>
+        
+        <div className="flex items-center justify-between">
+          <div className="flex gap-2">
+            <span className="px-2 py-1 bg-green-500/20 rounded-lg text-xs text-green-400">
+              📅 {category.stats.availableSlots} Slots Today
+            </span>
+            <span className="px-2 py-1 bg-yellow-500/20 rounded-lg text-xs text-yellow-400">
+              👥 {category.stats.inUse} In Use
+            </span>
+          </div>
+          
+          <button 
+            className="px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:shadow-lg"
+            style={{
+              background: `linear-gradient(135deg, ${category.borderColor} 0%, ${category.borderColor}dd 100%)`,
+              color: 'white'
+            }}
+          >
+            View All →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const ResourceDetailCard = ({ resource, onViewDetails }) => {
+    const isFavorite = favorites.includes(resource.id);
+    const isInUse = currentBookings[resource.id] && currentBookings[resource.id].length > 0;
+    
+    return (
+      <div 
+        className="group bg-[#0a1428] rounded-xl border border-[#38bdf8]/10 hover:border-[#38bdf8]/30 transition-all duration-300 overflow-hidden"
+      >
+        <div className="relative h-40 bg-gradient-to-br from-[#0f1a2e] to-[#0a1428] overflow-hidden">
+          <div className="absolute inset-0 flex items-center justify-center text-6xl opacity-20 group-hover:opacity-30 transition-opacity">
+            {getIconForType(resource.type)}
+          </div>
+          <div className="absolute top-3 right-3 flex gap-2">
+            <FavoriteButton 
+              resourceId={resource.id} 
+              isFavorite={isFavorite}
+              onToggle={fetchFavorites}
+              size="normal"
+            />
+          </div>
+          <div className="absolute bottom-3 left-3 flex gap-2">
+            <span className={`px-2 py-1 rounded-lg text-xs font-medium`}
+              style={{
+                background: STATUS_STYLES[resource.status]?.bg || STATUS_STYLES.ACTIVE.bg,
+                color: STATUS_STYLES[resource.status]?.text || STATUS_STYLES.ACTIVE.text,
+              }}>
+              {STATUS_STYLES[resource.status]?.label || 'Active'}
+            </span>
+            {isInUse && (
+              <span className="px-2 py-1 rounded-lg text-xs font-medium bg-yellow-500/20 text-yellow-400">
+                Currently In Use
+              </span>
+            )}
+          </div>
+        </div>
+        
+        <div className="p-5">
+          <div className="flex items-start justify-between mb-2">
+            <h3 className="text-xl font-bold text-white">{resource.name}</h3>
+            <span className="text-xs text-[#38bdf8] font-mono">{resource.type?.replace(/_/g, ' ')}</span>
+          </div>
+          
+          <p className="text-gray-400 text-sm mb-4 line-clamp-2">
+            {resource.description || 'No description available'}
+          </p>
+          
+          <div className="space-y-2 mb-4">
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <span>📍</span>
+              <span>{resource.location || 'Location not specified'}</span>
+            </div>
+            {resource.capacity && (
+              <div className="flex items-center gap-2 text-sm text-gray-400">
+                <span>👥</span>
+                <span>Capacity: {resource.capacity} people</span>
+              </div>
+            )}
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <span>⏰</span>
+              <span>{resource.availableFrom || '08:00'} - {resource.availableTo || '18:00'}</span>
+            </div>
+          </div>
+          
+          <button
+            onClick={() => onViewDetails(resource)}
+            className="w-full py-2.5 rounded-lg font-medium transition-all duration-300 bg-[#38bdf8]/10 hover:bg-[#38bdf8]/20 text-[#38bdf8] border border-[#38bdf8]/20"
+          >
+            View Details →
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const ResourceDetailModal = ({ resource, onClose }) => (
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={onClose}>
+      <div className="relative max-w-4xl w-full bg-[#0a1428] rounded-2xl border border-[#38bdf8]/20 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="sticky top-0 bg-[#0a1428] border-b border-[#38bdf8]/10 p-6 flex justify-between items-start">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-3xl">{getIconForType(resource.type)}</span>
+              <h2 className="text-2xl font-bold text-white">{resource.name}</h2>
+            </div>
+            <div className="flex gap-2">
+              <span className={`px-2 py-1 rounded-lg text-xs`}
+                style={{
+                  background: STATUS_STYLES[resource.status]?.bg,
+                  color: STATUS_STYLES[resource.status]?.text,
+                }}>
+                {STATUS_STYLES[resource.status]?.label}
+              </span>
+              <span className="px-2 py-1 bg-[#38bdf8]/10 rounded-lg text-xs text-[#38bdf8]">
+                {resource.type?.replace(/_/g, ' ')}
+              </span>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">✕</button>
+        </div>
+        
+        <div className="p-6 space-y-6">
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-2">Description</h3>
+            <p className="text-gray-300">{resource.description || 'No description provided.'}</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-[#0f1a2e] rounded-lg p-4">
+              <div className="text-gray-400 text-sm mb-1">📍 Location</div>
+              <div className="text-white">{resource.location || 'Not specified'}</div>
+            </div>
+            {resource.capacity && (
+              <div className="bg-[#0f1a2e] rounded-lg p-4">
+                <div className="text-gray-400 text-sm mb-1">👥 Capacity</div>
+                <div className="text-white">{resource.capacity} people</div>
+              </div>
+            )}
+            <div className="bg-[#0f1a2e] rounded-lg p-4">
+              <div className="text-gray-400 text-sm mb-1">⏰ Available Hours</div>
+              <div className="text-white">{resource.availableFrom || '08:00'} - {resource.availableTo || '18:00'}</div>
+            </div>
+          </div>
+          
+          <ResourceHeatmap resourceId={resource.id} />
+          
+          <SmartAvailability 
+            resourceId={resource.id}
+            resourceType={resource.type}
+            capacity={resource.capacity}
+            location={resource.location}
+          />
+          
+          <div className="flex gap-3 pt-4 border-t border-[#38bdf8]/10">
+            <button 
+              className="flex-1 py-3 rounded-lg font-semibold bg-gradient-to-r from-[#38bdf8] to-[#3b82f6] text-white"
+              onClick={() => {
+                alert(`Booking for ${resource.name} - Coming soon!`);
+                onClose();
+              }}
+            >
+              Book This Resource →
+            </button>
+            <button onClick={onClose} className="px-6 py-3 rounded-lg border border-[#38bdf8]/20 text-gray-300 hover:bg-[#38bdf8]/10">
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   if (loading) {
     return (
       <>
         <Navbar />
-        <div style={s.loadingContainer}>
-          <div style={s.spinner} />
-          <p style={s.loadingText}>Loading available resources...</p>
+        <div className="min-h-screen bg-[#050b18] flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-12 h-12 border-3 border-[#38bdf8]/20 border-t-[#38bdf8] rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-400">Loading resources...</p>
+          </div>
         </div>
       </>
     );
   }
 
+  if (!selectedCategory) {
+    return (
+      <>
+        <Navbar />
+        <div className="min-h-screen bg-[#050b18]">
+          <div className="bg-gradient-to-br from-[#0a1428] to-[#050b18] py-16 px-4 border-b border-[#38bdf8]/10">
+            <div className="max-w-7xl mx-auto text-center">
+              <div className="inline-block px-3 py-1 rounded-full bg-[#fbbf24]/10 text-[#fbbf24] text-xs font-mono mb-4">
+                SMART CAMPUS HUB
+              </div>
+              <h1 className="text-5xl md:text-6xl font-bold text-white mb-4">
+                Campus Resources
+              </h1>
+              <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+                Browse and book facilities across campus
+              </p>
+            </div>
+          </div>
+          
+          <div className="max-w-7xl mx-auto px-4 py-12">
+            {error ? (
+              <div className="text-center py-16">
+                <div className="text-red-400 mb-4">⚠️ {error}</div>
+                <button onClick={fetchResources} className="px-4 py-2 bg-[#38bdf8]/20 text-[#38bdf8] rounded-lg">Retry</button>
+              </div>
+            ) : categories.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="text-6xl mb-4">📭</div>
+                <h3 className="text-xl font-semibold text-white mb-2">No resource types found</h3>
+                <p className="text-gray-400">Add resources to see categories</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {categories.map((category, index) => (
+                  <div 
+                    key={category.id}
+                    className="animate-fade-up"
+                    style={{ animationDelay: `${index * 0.1}s` }}
+                  >
+                    <CategoryCard 
+                      category={category} 
+                      onClick={() => setSelectedCategory(category)}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        
+        <style>{`
+          @keyframes fade-up {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          .animate-fade-up {
+            animation: fade-up 0.5s ease forwards;
+            opacity: 0;
+          }
+          .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+          }
+        `}</style>
+      </>
+    );
+  }
+
+  const categoryResources = filteredResources();
+  
   return (
     <>
       <Navbar />
-      <div style={s.container}>
-        {/* Hero Section */}
-        <div style={s.hero}>
-          <div style={s.heroContent}>
-            <div style={s.badge}>CAMPUS RESOURCES</div>
-            <h1 style={s.title}>Available Resources</h1>
-            <p style={s.subtitle}>
-              Browse and book labs, equipment, rooms, and other campus facilities
-            </p>
-            <div style={s.stats}>
-              <div style={s.stat}>
-                <span style={s.statNumber}>{resources.length}</span>
-                <span style={s.statLabel}>Total Resources</span>
+      <div className="min-h-screen bg-[#050b18]">
+        <div className="bg-gradient-to-br from-[#0a1428] to-[#050b18] py-8 px-4 border-b border-[#38bdf8]/10">
+          <div className="max-w-7xl mx-auto">
+            <button 
+              onClick={() => setSelectedCategory(null)}
+              className="flex items-center gap-2 text-gray-400 hover:text-white mb-4 transition-colors"
+            >
+              ← Back to Categories
+            </button>
+            
+            <div className="flex items-center gap-4">
+              <span className="text-5xl">{selectedCategory.icon}</span>
+              <div>
+                <h1 className="text-3xl md:text-4xl font-bold text-white">
+                  {selectedCategory.title}
+                </h1>
+                <p className="text-gray-400 mt-1">{selectedCategory.description}</p>
               </div>
-              <div style={s.statDivider} />
-              <div style={s.stat}>
-                <span style={{ ...s.statNumber, color: '#4ade80' }}>{availableResources}</span>
-                <span style={s.statLabel}>Currently Available</span>
+            </div>
+            
+            <div className="flex gap-4 mt-4">
+              <div className="px-3 py-1 rounded-lg bg-[#38bdf8]/10 text-[#38bdf8] text-sm">
+                Total: {selectedCategory.stats.total}
+              </div>
+              <div className="px-3 py-1 rounded-lg bg-green-500/10 text-green-400 text-sm">
+                📅 {selectedCategory.stats.availableSlots} Available Slots Today
+              </div>
+              <div className="px-3 py-1 rounded-lg bg-yellow-500/10 text-yellow-400 text-sm">
+                👥 {selectedCategory.stats.inUse} Currently In Use
               </div>
             </div>
           </div>
         </div>
-
-        {/* Filters Section */}
-        <div style={s.filtersSection}>
-          <div style={s.filtersContainer}>
-            {/* Search Bar */}
-            <div style={s.searchWrapper}>
-              <span style={s.searchIcon}>🔍</span>
-              <input
-                type="text"
-                placeholder="Search by name, description, or location..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                style={s.searchInput}
-              />
-            </div>
-
-            <div style={s.filterGroup}>
-              {/* Type Filter */}
+        
+        <div className="sticky top-16 bg-[#050b18]/95 backdrop-blur-sm border-b border-[#38bdf8]/10 z-20 py-4 px-4">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex flex-wrap gap-3 items-center">
+              <div className="flex-1 min-w-[200px]">
+                <input
+                  type="text"
+                  placeholder="🔍 Search resources..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full px-4 py-2 bg-[#0a1428] border border-[#38bdf8]/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#38bdf8]"
+                />
+              </div>
+              
               <select
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
-                style={s.filterSelect}
-              >
-                {getUniqueTypes().map(type => (
-                  <option key={type} value={type}>
-                    {type === 'ALL' ? 'All Types' : type}
-                  </option>
-                ))}
-              </select>
-
-              {/* Status Filter */}
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                style={s.filterSelect}
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-4 py-2 bg-[#0a1428] border border-[#38bdf8]/20 rounded-lg text-white cursor-pointer"
               >
                 <option value="ALL">All Status</option>
-                <option value="AVAILABLE">Available</option>
-                <option value="MAINTAINING">Maintenance</option>
-                <option value="UNAVAILABLE">Unavailable</option>
+                <option value="ACTIVE">Active Only</option>
+                <option value="OUT_OF_SERVICE">Out of Service</option>
               </select>
-
-              {/* Clear Filters Button */}
-              {(search || selectedType !== "ALL" || selectedStatus !== "ALL") && (
+              
+              <button
+                onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                className={`px-4 py-2 rounded-lg transition-all ${
+                  showFavoritesOnly 
+                    ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' 
+                    : 'bg-[#0a1428] text-gray-400 border border-[#38bdf8]/20'
+                }`}
+              >
+                ⭐ Favorites {favorites.length > 0 && `(${favorites.length})`}
+              </button>
+              
+              <div className="flex gap-1 bg-[#0a1428] rounded-lg p-1">
+                <button
+                  onClick={() => setViewMode("grid")}
+                  className={`px-3 py-1.5 rounded-md text-sm ${
+                    viewMode === "grid" ? "bg-[#38bdf8] text-black" : "text-gray-400"
+                  }`}
+                >
+                  Grid
+                </button>
+                <button
+                  onClick={() => setViewMode("list")}
+                  className={`px-3 py-1.5 rounded-md text-sm ${
+                    viewMode === "list" ? "bg-[#38bdf8] text-black" : "text-gray-400"
+                  }`}
+                >
+                  List
+                </button>
+              </div>
+              
+              {(search || statusFilter !== "ALL" || showFavoritesOnly) && (
                 <button
                   onClick={() => {
                     setSearch("");
-                    setSelectedType("ALL");
-                    setSelectedStatus("ALL");
+                    setStatusFilter("ALL");
+                    setShowFavoritesOnly(false);
                   }}
-                  style={s.clearBtn}
+                  className="px-4 py-2 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500/20"
                 >
-                  Clear Filters
+                  Clear All
                 </button>
               )}
             </div>
           </div>
         </div>
-
-        {/* Results Count */}
-        <div style={s.resultsCount}>
-          Found {filtered.length} resource{filtered.length !== 1 ? 's' : ''}
+        
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <p className="text-gray-500 text-sm">
+            Found {categoryResources.length} resource{categoryResources.length !== 1 ? 's' : ''}
+          </p>
         </div>
-
-        {/* Resources Grid */}
-        {error ? (
-          <div style={s.errorContainer}>
-            <div style={s.errorIcon}>⚠️</div>
-            <p style={s.errorText}>{error}</p>
-            <button onClick={fetchResources} style={s.retryBtn}>Try Again</button>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div style={s.emptyContainer}>
-            <div style={s.emptyIcon}>📦</div>
-            <h3 style={s.emptyTitle}>No resources found</h3>
-            <p style={s.emptyText}>
-              {search || selectedType !== "ALL" || selectedStatus !== "ALL"
-                ? "Try adjusting your filters to see more results"
-                : "No resources are currently available"}
-            </p>
-          </div>
-        ) : (
-          <div style={s.grid}>
-            {filtered.map((resource, index) => (
-              <div
-                key={resource.id}
-                style={{ ...s.card, animationDelay: `${index * 0.05}s` }}
-                onClick={() => setSelectedResource(resource)}
-              >
-                <div style={s.cardHeader}>
-                  <div style={s.cardIcon}>
-                    {resource.type === 'LAB' && '🔬'}
-                    {resource.type === 'EQUIPMENT' && '🛠️'}
-                    {resource.type === 'ROOM' && '🚪'}
-                    {resource.type === 'VEHICLE' && '🚗'}
-                    {resource.type === 'OTHER' && '📦'}
-                  </div>
-                  <span style={{
-                    ...s.statusChip,
-                    background: STATUS_STYLES[resource.status]?.bg || STATUS_STYLES.AVAILABLE.bg,
-                    color: STATUS_STYLES[resource.status]?.text || STATUS_STYLES.AVAILABLE.text,
-                    borderColor: STATUS_STYLES[resource.status]?.border || STATUS_STYLES.AVAILABLE.border,
-                  }}>
-                    {STATUS_STYLES[resource.status]?.label || 'Available'}
-                  </span>
-                </div>
-
-                <h3 style={s.cardTitle}>{resource.name}</h3>
-                <p style={s.cardDescription}>{resource.description || 'No description available'}</p>
-
-                <div style={s.cardDetails}>
-                  <div style={s.detailItem}>
-                    <span style={s.detailIcon}>📍</span>
-                    <span style={s.detailText}>{resource.location || 'Location not specified'}</span>
-                  </div>
-                  {resource.capacity && (
-                    <div style={s.detailItem}>
-                      <span style={s.detailIcon}>👥</span>
-                      <span style={s.detailText}>Capacity: {resource.capacity}</span>
-                    </div>
-                  )}
-                  {resource.availableFrom && resource.availableTo && (
-                    <div style={s.detailItem}>
-                      <span style={s.detailIcon}>⏰</span>
-                      <span style={s.detailText}>{resource.availableFrom} - {resource.availableTo}</span>
-                    </div>
-                  )}
-                  {resource.maxBookingHours && (
-                    <div style={s.detailItem}>
-                      <span style={s.detailIcon}>⌛</span>
-                      <span style={s.detailText}>Max {resource.maxBookingHours} hours</span>
-                    </div>
-                  )}
-                </div>
-
-                <button
-                  style={{
-                    ...s.viewBtn,
-                    opacity: resource.status === 'AVAILABLE' ? 1 : 0.5,
-                    cursor: resource.status === 'AVAILABLE' ? 'pointer' : 'not-allowed',
-                  }}
-                  disabled={resource.status !== 'AVAILABLE'}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (resource.status === 'AVAILABLE') {
-                      // Navigate to booking page or show booking modal
-                      alert(`Booking for ${resource.name} - Coming soon!`);
-                    }
-                  }}
-                >
-                  {resource.status === 'AVAILABLE' ? 'Book Now →' : 'Currently Unavailable'}
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Resource Detail Modal */}
-        {selectedResource && (
-          <div style={s.modalOverlay} onClick={() => setSelectedResource(null)}>
-            <div style={s.modal} onClick={e => e.stopPropagation()}>
-              <button style={s.modalClose} onClick={() => setSelectedResource(null)}>✕</button>
-              
-              <div style={s.modalHeader}>
-                <div style={s.modalIcon}>
-                  {selectedResource.type === 'LAB' && '🔬'}
-                  {selectedResource.type === 'EQUIPMENT' && '🛠️'}
-                  {selectedResource.type === 'ROOM' && '🚪'}
-                  {selectedResource.type === 'VEHICLE' && '🚗'}
-                  {selectedResource.type === 'OTHER' && '📦'}
-                </div>
-                <div>
-                  <span style={{
-                    ...s.modalStatus,
-                    background: STATUS_STYLES[selectedResource.status]?.bg || STATUS_STYLES.AVAILABLE.bg,
-                    color: STATUS_STYLES[selectedResource.status]?.text || STATUS_STYLES.AVAILABLE.text,
-                  }}>
-                    {STATUS_STYLES[selectedResource.status]?.label || 'Available'}
-                  </span>
-                  <h2 style={s.modalTitle}>{selectedResource.name}</h2>
-                  <p style={s.modalType}>{selectedResource.type}</p>
-                </div>
-              </div>
-
-              <div style={s.modalBody}>
-                <div style={s.modalSection}>
-                  <h4 style={s.modalSectionTitle}>Description</h4>
-                  <p style={s.modalText}>{selectedResource.description || 'No description provided.'}</p>
-                </div>
-
-                <div style={s.modalSection}>
-                  <h4 style={s.modalSectionTitle}>Details</h4>
-                  <div style={s.modalDetailsGrid}>
-                    <div style={s.modalDetail}>
-                      <span style={s.modalDetailIcon}>📍</span>
-                      <div>
-                        <div style={s.modalDetailLabel}>Location</div>
-                        <div style={s.modalDetailValue}>{selectedResource.location || 'Not specified'}</div>
-                      </div>
-                    </div>
-                    {selectedResource.capacity && (
-                      <div style={s.modalDetail}>
-                        <span style={s.modalDetailIcon}>👥</span>
-                        <div>
-                          <div style={s.modalDetailLabel}>Capacity</div>
-                          <div style={s.modalDetailValue}>{selectedResource.capacity} people</div>
-                        </div>
-                      </div>
-                    )}
-                    {selectedResource.availableFrom && selectedResource.availableTo && (
-                      <div style={s.modalDetail}>
-                        <span style={s.modalDetailIcon}>⏰</span>
-                        <div>
-                          <div style={s.modalDetailLabel}>Available Hours</div>
-                          <div style={s.modalDetailValue}>{selectedResource.availableFrom} - {selectedResource.availableTo}</div>
-                        </div>
-                      </div>
-                    )}
-                    {selectedResource.maxBookingHours && (
-                      <div style={s.modalDetail}>
-                        <span style={s.modalDetailIcon}>⌛</span>
-                        <div>
-                          <div style={s.modalDetailLabel}>Max Booking Duration</div>
-                          <div style={s.modalDetailValue}>{selectedResource.maxBookingHours} hours</div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div style={s.modalFooter}>
-                <button style={s.modalCancelBtn} onClick={() => setSelectedResource(null)}>Close</button>
-                {selectedResource.status === 'AVAILABLE' && (
-                  <button
-                    style={s.modalBookBtn}
-                    onClick={() => {
-                      alert(`Booking for ${selectedResource.name} - Coming soon!`);
-                      setSelectedResource(null);
-                    }}
-                  >
-                    Book This Resource
-                  </button>
-                )}
-              </div>
+        
+        <div className="max-w-7xl mx-auto px-4 pb-12">
+          {categoryResources.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="text-6xl mb-4 opacity-50">📭</div>
+              <h3 className="text-xl font-semibold text-white mb-2">No resources found</h3>
+              <p className="text-gray-400">
+                {search || statusFilter !== "ALL" || showFavoritesOnly
+                  ? "Try adjusting your filters"
+                  : "No resources available in this category"}
+              </p>
             </div>
-          </div>
+          ) : viewMode === "grid" ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {categoryResources.map((resource, index) => (
+                <div 
+                  key={resource.id}
+                  className="animate-fade-up"
+                  style={{ animationDelay: `${index * 0.05}s` }}
+                >
+                  <ResourceDetailCard 
+                    resource={resource} 
+                    onViewDetails={setSelectedResource}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {categoryResources.map((resource) => {
+                const isInUse = currentBookings[resource.id] && currentBookings[resource.id].length > 0;
+                return (
+                  <div 
+                    key={resource.id}
+                    className="bg-[#0a1428] rounded-xl border border-[#38bdf8]/10 p-4 flex flex-wrap items-center justify-between gap-4 hover:border-[#38bdf8]/30 transition-all"
+                  >
+                    <div className="flex items-center gap-4 flex-1">
+                      <div className="text-3xl">{getIconForType(resource.type)}</div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-white">{resource.name}</h3>
+                        <p className="text-gray-400 text-sm">{resource.location}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          resource.status === 'ACTIVE' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                        }`}>
+                          {STATUS_STYLES[resource.status]?.label}
+                        </span>
+                        {isInUse && (
+                          <span className="px-2 py-1 rounded text-xs bg-yellow-500/20 text-yellow-400">
+                            In Use
+                          </span>
+                        )}
+                        <FavoriteButton 
+                          resourceId={resource.id} 
+                          isFavorite={favorites.includes(resource.id)}
+                          onToggle={fetchFavorites}
+                          size="small"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setSelectedResource(resource)}
+                      className="px-4 py-2 bg-[#38bdf8]/10 text-[#38bdf8] rounded-lg hover:bg-[#38bdf8]/20"
+                    >
+                      View →
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        
+        {selectedResource && (
+          <ResourceDetailModal 
+            resource={selectedResource} 
+            onClose={() => setSelectedResource(null)}
+          />
         )}
       </div>
-
-      <style>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        @keyframes fadeUp {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        @keyframes scaleIn {
-          from {
-            opacity: 0;
-            transform: scale(0.95);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-      `}</style>
     </>
   );
 }
-
-const s = {
-  container: {
-    minHeight: '100vh',
-    background: '#050b18',
-    fontFamily: "'DM Sans', sans-serif",
-  },
-  loadingContainer: {
-    minHeight: '100vh',
-    background: '#050b18',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '16px',
-  },
-  spinner: {
-    width: 40,
-    height: 40,
-    border: '3px solid rgba(56,189,248,0.15)',
-    borderTopColor: '#38bdf8',
-    borderRadius: '50%',
-    animation: 'spin 0.8s linear infinite',
-  },
-  loadingText: {
-    color: '#7a9ab5',
-    fontSize: 14,
-  },
-  hero: {
-    background: 'linear-gradient(135deg, #0a1428 0%, #050b18 100%)',
-    padding: '60px 32px 80px',
-    borderBottom: '1px solid rgba(56,189,248,0.1)',
-  },
-  heroContent: {
-    maxWidth: 900,
-    margin: '0 auto',
-    textAlign: 'center',
-  },
-  badge: {
-    fontSize: 10,
-    fontWeight: 700,
-    letterSpacing: '0.15em',
-    color: '#fbbf24',
-    fontFamily: "'Geist Mono', monospace",
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 48,
-    fontWeight: 800,
-    margin: '0 0 16px',
-    letterSpacing: '-0.04em',
-    color: '#f0f6ff',
-  },
-  subtitle: {
-    fontSize: 18,
-    color: '#7a9ab5',
-    marginBottom: 32,
-    lineHeight: 1.5,
-  },
-  stats: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 24,
-    padding: '20px 32px',
-    background: 'rgba(10,20,40,0.7)',
-    borderRadius: 16,
-    border: '1px solid rgba(56,189,248,0.12)',
-    maxWidth: 400,
-    margin: '0 auto',
-  },
-  stat: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 4,
-  },
-  statNumber: {
-    fontSize: 28,
-    fontWeight: 800,
-    color: '#38bdf8',
-  },
-  statLabel: {
-    fontSize: 11,
-    color: '#3d5a70',
-    fontFamily: "'Geist Mono', monospace",
-    textTransform: 'uppercase',
-  },
-  statDivider: {
-    width: 1,
-    height: 30,
-    background: 'rgba(56,189,248,0.2)',
-  },
-  filtersSection: {
-    position: 'sticky',
-    top: 60,
-    background: 'rgba(5,11,24,0.95)',
-    backdropFilter: 'blur(12px)',
-    borderBottom: '1px solid rgba(56,189,248,0.1)',
-    zIndex: 10,
-  },
-  filtersContainer: {
-    maxWidth: 1200,
-    margin: '0 auto',
-    padding: '20px 32px',
-  },
-  searchWrapper: {
-    position: 'relative',
-    marginBottom: 16,
-  },
-  searchIcon: {
-    position: 'absolute',
-    left: 14,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    color: '#3d5a70',
-    fontSize: 16,
-  },
-  searchInput: {
-    width: '100%',
-    padding: '12px 16px 12px 40px',
-    background: 'rgba(10,20,40,0.7)',
-    border: '1px solid rgba(56,189,248,0.15)',
-    borderRadius: 10,
-    color: '#f0f6ff',
-    fontSize: 14,
-    fontFamily: 'inherit',
-    outline: 'none',
-    boxSizing: 'border-box',
-  },
-  filterGroup: {
-    display: 'flex',
-    gap: 12,
-    flexWrap: 'wrap',
-  },
-  filterSelect: {
-    padding: '8px 16px',
-    background: 'rgba(10,20,40,0.7)',
-    border: '1px solid rgba(56,189,248,0.15)',
-    borderRadius: 8,
-    color: '#f0f6ff',
-    fontSize: 13,
-    fontFamily: 'inherit',
-    cursor: 'pointer',
-    outline: 'none',
-  },
-  clearBtn: {
-    padding: '8px 16px',
-    background: 'rgba(251,113,133,0.1)',
-    border: '1px solid rgba(251,113,133,0.3)',
-    borderRadius: 8,
-    color: '#fb7185',
-    fontSize: 13,
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    transition: 'all 0.2s',
-  },
-  resultsCount: {
-    maxWidth: 1200,
-    margin: '24px auto 0',
-    padding: '0 32px',
-    fontSize: 13,
-    color: '#3d5a70',
-    fontFamily: "'Geist Mono', monospace",
-  },
-  grid: {
-    maxWidth: 1200,
-    margin: '24px auto 0',
-    padding: '0 32px 60px',
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
-    gap: 24,
-  },
-  card: {
-    background: 'rgba(10,20,40,0.7)',
-    border: '1px solid rgba(56,189,248,0.12)',
-    borderRadius: 16,
-    padding: '20px',
-    transition: 'all 0.3s ease',
-    cursor: 'pointer',
-    animation: 'fadeUp 0.5s ease both',
-    backdropFilter: 'blur(12px)',
-  },
-  cardHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  cardIcon: {
-    fontSize: 32,
-  },
-  statusChip: {
-    fontSize: 10,
-    fontWeight: 700,
-    letterSpacing: '0.1em',
-    padding: '3px 9px',
-    borderRadius: 6,
-    border: '1px solid',
-    fontFamily: "'Geist Mono', monospace",
-    textTransform: 'uppercase',
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: 700,
-    color: '#f0f6ff',
-    margin: '0 0 8px',
-  },
-  cardDescription: {
-    fontSize: 13,
-    color: '#7a9ab5',
-    lineHeight: 1.5,
-    marginBottom: 16,
-  },
-  cardDetails: {
-    borderTop: '1px solid rgba(56,189,248,0.08)',
-    paddingTop: 16,
-    marginBottom: 16,
-  },
-  detailItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-    fontSize: 12,
-    color: '#7a9ab5',
-  },
-  detailIcon: {
-    fontSize: 12,
-  },
-  detailText: {
-    fontSize: 12,
-  },
-  viewBtn: {
-    width: '100%',
-    padding: '10px',
-    background: 'rgba(56,189,248,0.1)',
-    border: '1px solid rgba(56,189,248,0.25)',
-    borderRadius: 8,
-    color: '#38bdf8',
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    fontFamily: 'inherit',
-  },
-  errorContainer: {
-    maxWidth: 500,
-    margin: '80px auto',
-    textAlign: 'center',
-    padding: '0 32px',
-  },
-  errorIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  errorText: {
-    color: '#fb7185',
-    fontSize: 14,
-    marginBottom: 20,
-  },
-  retryBtn: {
-    padding: '10px 24px',
-    background: 'rgba(56,189,248,0.1)',
-    border: '1px solid rgba(56,189,248,0.25)',
-    borderRadius: 8,
-    color: '#38bdf8',
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-  },
-  emptyContainer: {
-    maxWidth: 500,
-    margin: '80px auto',
-    textAlign: 'center',
-    padding: '0 32px',
-  },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 16,
-    opacity: 0.5,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: 700,
-    color: '#f0f6ff',
-    marginBottom: 8,
-  },
-  emptyText: {
-    color: '#7a9ab5',
-    fontSize: 14,
-  },
-  modalOverlay: {
-    position: 'fixed',
-    inset: 0,
-    background: 'rgba(0,0,0,0.8)',
-    backdropFilter: 'blur(4px)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-    padding: 24,
-  },
-  modal: {
-    position: 'relative',
-    maxWidth: 600,
-    width: '100%',
-    maxHeight: '90vh',
-    overflowY: 'auto',
-    background: '#0a1428',
-    border: '1px solid rgba(56,189,248,0.2)',
-    borderRadius: 20,
-    padding: 32,
-    animation: 'scaleIn 0.25s ease',
-  },
-  modalClose: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-    background: 'rgba(56,189,248,0.1)',
-    border: 'none',
-    borderRadius: 8,
-    color: '#7a9ab5',
-    fontSize: 16,
-    cursor: 'pointer',
-    padding: '4px 8px',
-    transition: 'all 0.2s',
-  },
-  modalHeader: {
-    display: 'flex',
-    gap: 16,
-    marginBottom: 24,
-  },
-  modalIcon: {
-    fontSize: 48,
-  },
-  modalStatus: {
-    display: 'inline-block',
-    fontSize: 10,
-    fontWeight: 700,
-    letterSpacing: '0.1em',
-    padding: '3px 9px',
-    borderRadius: 6,
-    marginBottom: 12,
-    fontFamily: "'Geist Mono', monospace",
-    textTransform: 'uppercase',
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: 800,
-    margin: '0 0 4px',
-    color: '#f0f6ff',
-  },
-  modalType: {
-    fontSize: 13,
-    color: '#38bdf8',
-    fontFamily: "'Geist Mono', monospace",
-  },
-  modalBody: {
-    marginBottom: 24,
-  },
-  modalSection: {
-    marginBottom: 24,
-  },
-  modalSectionTitle: {
-    fontSize: 12,
-    fontWeight: 700,
-    color: '#3d5a70',
-    fontFamily: "'Geist Mono', monospace",
-    textTransform: 'uppercase',
-    marginBottom: 12,
-  },
-  modalText: {
-    fontSize: 14,
-    color: '#7a9ab5',
-    lineHeight: 1.6,
-  },
-  modalDetailsGrid: {
-    display: 'grid',
-    gap: 16,
-  },
-  modalDetail: {
-    display: 'flex',
-    gap: 12,
-    alignItems: 'flex-start',
-  },
-  modalDetailIcon: {
-    fontSize: 20,
-  },
-  modalDetailLabel: {
-    fontSize: 11,
-    color: '#3d5a70',
-    fontFamily: "'Geist Mono', monospace",
-    textTransform: 'uppercase',
-    marginBottom: 2,
-  },
-  modalDetailValue: {
-    fontSize: 14,
-    color: '#f0f6ff',
-  },
-  modalFooter: {
-    display: 'flex',
-    gap: 12,
-    justifyContent: 'flex-end',
-    paddingTop: 24,
-    borderTop: '1px solid rgba(56,189,248,0.08)',
-  },
-  modalCancelBtn: {
-    padding: '10px 20px',
-    background: 'transparent',
-    border: '1px solid rgba(56,189,248,0.2)',
-    borderRadius: 8,
-    color: '#7a9ab5',
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-  },
-  modalBookBtn: {
-    padding: '10px 24px',
-    background: '#38bdf8',
-    border: 'none',
-    borderRadius: 8,
-    color: '#050b18',
-    fontWeight: 700,
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-  },
-};

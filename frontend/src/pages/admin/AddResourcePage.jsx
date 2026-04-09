@@ -1,8 +1,11 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../api/axios";
 import Layout from "../../components/Layout";
+
+const RESOURCE_TYPES = ["LECTURE_ROOM", "LAB", "MEETING_ROOM", "EQUIPMENT", "SPORTS", "EVENT_SPACE"];
+const RESOURCE_STATUS = ["ACTIVE", "OUT_OF_SERVICE"];
 
 export default function AddResourcePage() {
   const { user } = useAuth();
@@ -10,29 +13,71 @@ export default function AddResourcePage() {
 
   const [formData, setFormData] = useState({
     name: "",
-    type: "LAB",
+    type: "LECTURE_ROOM",
     description: "",
     location: "",
     capacity: "",
-    status: "AVAILABLE",
-    availableFrom: "",
-    availableTo: "",
-    maxBookingHours: ""
+    status: "ACTIVE",
+    availableFrom: "08:00",
+    availableTo: "18:00",
+    maxBookingHours: "2"
   });
+
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
+
+  // Check authentication
+  useEffect(() => {
+    if (!user) {
+      navigate("/login");
+    }
+  }, [user, navigate]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
+    setSuccess(false);
+
     try {
-      await api.post("/api/resources", formData);
-      navigate("/admin/resources");
+      // Prepare payload matching backend expectations
+      const payload = {
+        name: formData.name,
+        type: formData.type,
+        description: formData.description,
+        location: formData.location,
+        capacity: formData.capacity ? Number(formData.capacity) : null,
+        status: formData.status,
+        availableFrom: formData.availableFrom,
+        availableTo: formData.availableTo,
+        maxBookingHours: Number(formData.maxBookingHours)
+      };
+
+      console.log("Sending payload:", payload);
+      await api.post("/api/resources", payload);
+      
+      setSuccess(true);
+      
+      // Navigate to ResourceListPage after successful addition
+      setTimeout(() => {
+        navigate("/resourceslist"); // Make sure this matches your route path
+      }, 1000); // Small delay to show success message
+      
     } catch (err) {
-      alert("Failed to add resource");
+      console.error("Error adding resource:", err);
+      console.error("Response data:", err.response?.data);
+      setError(err.response?.data?.message || "Failed to add resource");
       setLoading(false);
     }
   };
 
+  // Don't render if not authenticated
   if (!user) return null;
 
   return (
@@ -42,49 +87,63 @@ export default function AddResourcePage() {
         <div style={s.header}>
           <div>
             <div style={s.sectionLabel}>RESOURCE MANAGEMENT</div>
-            <h1 style={s.title}>Add New Resource</h1>
-            <p style={s.subtitle}>Create a new campus resource</p>
+            <h1 style={s.title}>Create a new resource for the campus</h1>
+            <p style={s.subtitle}>Add a new resource to the campus inventory</p>
           </div>
-          <button style={s.cancelBtn} onClick={() => navigate("/admin/resources")}>
+          <button 
+            style={s.cancelBtn} 
+            onClick={() => navigate("/resourceslist")} // Navigate to ResourceListPage on cancel
+          >
             ← Back to Resources
           </button>
         </div>
+
+        {/* Success Message */}
+        {success && (
+          <div style={s.successMessage}>
+            ✅ Resource added successfully! Redirecting to resources list...
+          </div>
+        )}
+
+        {/* Error Message */}
+        {error && <div style={s.errorMessage}>{error}</div>}
 
         {/* Form */}
         <form onSubmit={handleSubmit} style={s.form}>
           <div style={s.formGrid}>
             <div style={s.formGroup}>
-              <label style={s.label}>Name *</label>
+              <label style={s.label}>NAME *</label>
               <input
                 type="text"
+                name="name"
                 required
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={handleChange}
                 style={s.input}
-                placeholder="e.g., Computer Lab A"
+                placeholder="e.g., A101"
               />
             </div>
 
             <div style={s.formGroup}>
-              <label style={s.label}>Type *</label>
+              <label style={s.label}>TYPE *</label>
               <select
+                name="type"
                 value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                onChange={handleChange}
                 style={s.select}
               >
-                <option value="LAB">LAB</option>
-                <option value="EQUIPMENT">EQUIPMENT</option>
-                <option value="ROOM">ROOM</option>
-                <option value="VEHICLE">VEHICLE</option>
-                <option value="OTHER">OTHER</option>
+                {RESOURCE_TYPES.map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
               </select>
             </div>
 
             <div style={s.formGroupFull}>
-              <label style={s.label}>Description</label>
+              <label style={s.label}>DESCRIPTION</label>
               <textarea
+                name="description"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={handleChange}
                 style={s.textarea}
                 placeholder="Describe the resource..."
                 rows="4"
@@ -92,78 +151,94 @@ export default function AddResourcePage() {
             </div>
 
             <div style={s.formGroup}>
-              <label style={s.label}>Location</label>
+              <label style={s.label}>LOCATION *</label>
               <input
                 type="text"
+                name="location"
+                required
                 value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                onChange={handleChange}
                 style={s.input}
-                placeholder="e.g., Building A, Room 101"
+                placeholder="e.g., Building C, Floor 1"
               />
             </div>
 
             <div style={s.formGroup}>
-              <label style={s.label}>Capacity</label>
+              <label style={s.label}>CAPACITY</label>
               <input
                 type="number"
+                name="capacity"
                 value={formData.capacity}
-                onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
+                onChange={handleChange}
                 style={s.input}
-                placeholder="e.g., 30"
+                placeholder="e.g., 60"
               />
             </div>
 
             <div style={s.formGroup}>
-              <label style={s.label}>Status</label>
+              <label style={s.label}>STATUS</label>
               <select
+                name="status"
                 value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                onChange={handleChange}
                 style={s.select}
               >
-                <option value="AVAILABLE">AVAILABLE</option>
-                <option value="MAINTAINING">MAINTAINING</option>
-                <option value="UNAVAILABLE">UNAVAILABLE</option>
+                {RESOURCE_STATUS.map(status => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
               </select>
             </div>
 
             <div style={s.formGroup}>
-              <label style={s.label}>Available From</label>
+              <label style={s.label}>AVAILABLE FROM</label>
               <input
                 type="time"
+                name="availableFrom"
                 value={formData.availableFrom}
-                onChange={(e) => setFormData({ ...formData, availableFrom: e.target.value })}
+                onChange={handleChange}
                 style={s.input}
               />
             </div>
 
             <div style={s.formGroup}>
-              <label style={s.label}>Available To</label>
+              <label style={s.label}>AVAILABLE TO</label>
               <input
                 type="time"
+                name="availableTo"
                 value={formData.availableTo}
-                onChange={(e) => setFormData({ ...formData, availableTo: e.target.value })}
+                onChange={handleChange}
                 style={s.input}
               />
             </div>
 
             <div style={s.formGroup}>
-              <label style={s.label}>Max Booking Hours</label>
+              <label style={s.label}>MAX BOOKING HOURS</label>
               <input
                 type="number"
+                name="maxBookingHours"
                 value={formData.maxBookingHours}
-                onChange={(e) => setFormData({ ...formData, maxBookingHours: e.target.value })}
+                onChange={handleChange}
                 style={s.input}
-                placeholder="e.g., 4"
+                placeholder="e.g., 2"
+                required
               />
             </div>
           </div>
 
           <div style={s.formActions}>
-            <button type="button" style={s.secondaryBtn} onClick={() => navigate("/admin/resources")}>
+            <button 
+              type="button" 
+              style={s.secondaryBtn} 
+              onClick={() => navigate("/resourceslist")}
+            >
               Cancel
             </button>
-            <button type="submit" style={s.primaryBtn} disabled={loading}>
-              {loading ? "Saving..." : "Save Resource"}
+            <button 
+              type="submit" 
+              style={s.primaryBtn} 
+              disabled={loading || success}
+            >
+              {loading ? "Adding..." : success ? "Added!" : "Add Resource"}
             </button>
           </div>
         </form>
@@ -232,6 +307,24 @@ const s = {
     cursor: 'pointer',
     fontFamily: 'inherit',
     transition: 'all 0.2s',
+  },
+  successMessage: {
+    background: 'rgba(34,197,94,0.1)',
+    border: '1px solid rgba(34,197,94,0.3)',
+    borderRadius: 12,
+    color: '#4ade80',
+    padding: '12px 20px',
+    marginBottom: 24,
+    fontSize: 14,
+  },
+  errorMessage: {
+    background: 'rgba(251,113,133,0.1)',
+    border: '1px solid rgba(251,113,133,0.3)',
+    borderRadius: 12,
+    color: '#fb7185',
+    padding: '12px 20px',
+    marginBottom: 24,
+    fontSize: 14,
   },
   form: {
     background: 'rgba(8,16,32,0.6)',

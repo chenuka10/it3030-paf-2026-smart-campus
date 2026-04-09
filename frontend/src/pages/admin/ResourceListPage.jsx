@@ -5,9 +5,8 @@ import api from "../../api/axios";
 import Layout from "../../components/Layout";
 
 const STATUS_STYLES = {
-  AVAILABLE: { bg: 'rgba(34,197,94,0.12)', text: '#4ade80', border: 'rgba(34,197,94,0.25)' },
-  MAINTAINING: { bg: 'rgba(251,191,36,0.12)', text: '#fbbf24', border: 'rgba(251,191,36,0.25)' },
-  UNAVAILABLE: { bg: 'rgba(251,113,133,0.12)', text: '#fb7185', border: 'rgba(251,113,133,0.25)' },
+  ACTIVE: { bg: 'rgba(34,197,94,0.12)', text: '#4ade80', border: 'rgba(34,197,94,0.25)' },
+  OUT_OF_SERVICE: { bg: 'rgba(251,113,133,0.12)', text: '#fb7185', border: 'rgba(251,113,133,0.25)' },
 };
 
 export default function ResourceListPage() {
@@ -65,11 +64,11 @@ export default function ResourceListPage() {
     r.location?.toLowerCase().includes(search.toLowerCase())
   );
 
+  // Updated stats for ACTIVE and OUT_OF_SERVICE
   const stats = {
     total: resources.length,
-    available: resources.filter(r => r.status === 'AVAILABLE').length,
-    maintaining: resources.filter(r => r.status === 'MAINTAINING').length,
-    unavailable: resources.filter(r => r.status === 'UNAVAILABLE').length,
+    active: resources.filter(r => r.status === 'ACTIVE').length,
+    outOfService: resources.filter(r => r.status === 'OUT_OF_SERVICE').length,
   };
 
   if (loading) {
@@ -126,7 +125,7 @@ export default function ResourceListPage() {
           </button>
         </div>
 
-        {/* Stats Cards */}
+        {/* Stats Cards - Updated to 3 cards */}
         {error ? (
           <div style={s.errorBanner}>⚠ {error}</div>
         ) : (
@@ -136,16 +135,12 @@ export default function ResourceListPage() {
               <div style={s.statLabel}>TOTAL RESOURCES</div>
             </div>
             <div style={s.statCard}>
-              <div style={{ ...s.statValue, color: '#4ade80' }}>{stats.available}</div>
-              <div style={s.statLabel}>AVAILABLE</div>
+              <div style={{ ...s.statValue, color: '#4ade80' }}>{stats.active}</div>
+              <div style={s.statLabel}>ACTIVE</div>
             </div>
             <div style={s.statCard}>
-              <div style={{ ...s.statValue, color: '#fbbf24' }}>{stats.maintaining}</div>
-              <div style={s.statLabel}>MAINTAINING</div>
-            </div>
-            <div style={s.statCard}>
-              <div style={{ ...s.statValue, color: '#fb7185' }}>{stats.unavailable}</div>
-              <div style={s.statLabel}>UNAVAILABLE</div>
+              <div style={{ ...s.statValue, color: '#fb7185' }}>{stats.outOfService}</div>
+              <div style={s.statLabel}>OUT OF SERVICE</div>
             </div>
           </div>
         )}
@@ -206,11 +201,11 @@ export default function ResourceListPage() {
                     <td style={s.td}>
                       <span style={{
                         ...s.statusBadge,
-                        background: STATUS_STYLES[resource.status]?.bg || STATUS_STYLES.AVAILABLE.bg,
-                        color: STATUS_STYLES[resource.status]?.text || STATUS_STYLES.AVAILABLE.text,
-                        borderColor: STATUS_STYLES[resource.status]?.border || STATUS_STYLES.AVAILABLE.border,
+                        background: STATUS_STYLES[resource.status]?.bg || STATUS_STYLES.ACTIVE.bg,
+                        color: STATUS_STYLES[resource.status]?.text || STATUS_STYLES.ACTIVE.text,
+                        borderColor: STATUS_STYLES[resource.status]?.border || STATUS_STYLES.ACTIVE.border,
                       }}>
-                        {resource.status || 'AVAILABLE'}
+                        {resource.status || 'ACTIVE'}
                       </span>
                     </td>
                     <td style={{ ...s.td, color: '#7a9ab5', fontSize: 13 }}>
@@ -377,7 +372,7 @@ const s = {
   },
   statsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(4, 1fr)',
+    gridTemplateColumns: 'repeat(3, 1fr)',
     gap: 12,
     marginBottom: 28,
   },

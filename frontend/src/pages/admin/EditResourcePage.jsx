@@ -4,6 +4,10 @@ import { useAuth } from "../../context/AuthContext";
 import api from "../../api/axios";
 import Layout from "../../components/Layout";
 
+// ✅ FIXED: Match the types from AddResourcePage and backend
+const RESOURCE_TYPES = ["LECTURE_HALL", "LAB", "MEETING_ROOM", "EQUIPMENT", "OUTDOOR", "AUDITORIUM", "CLASSROOM", "SPORTS"];
+const RESOURCE_STATUS = ["ACTIVE", "OUT_OF_SERVICE"]; // ✅ Fixed: Match backend enum
+
 export default function EditResourcePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -11,17 +15,18 @@ export default function EditResourcePage() {
 
   const [formData, setFormData] = useState({
     name: "",
-    type: "LAB",
+    type: "LECTURE_HALL",
     description: "",
     location: "",
     capacity: "",
-    status: "AVAILABLE",
+    status: "ACTIVE", // ✅ Changed from "AVAILABLE" to "ACTIVE"
     availableFrom: "",
     availableTo: "",
     maxBookingHours: ""
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (!user) {
@@ -34,11 +39,16 @@ export default function EditResourcePage() {
   const fetchResource = async () => {
     try {
       const { data } = await api.get(`/api/resources/${id}`);
-      setFormData(data);
+      // Ensure status is mapped correctly if backend returns different format
+      setFormData({
+        ...data,
+        capacity: data.capacity || "",
+        maxBookingHours: data.maxBookingHours || ""
+      });
     } catch (err) {
       console.error("Failed to fetch resource", err);
-      alert("Failed to load resource");
-      navigate("/admin/resources");
+      setError("Failed to load resource");
+      setTimeout(() => navigate("/resources"), 2000);
     } finally {
       setLoading(false);
     }
@@ -47,11 +57,21 @@ export default function EditResourcePage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
+    setError(null);
+    
     try {
-      await api.put(`/api/resources/${id}`, formData);
-      navigate("/admin/resources");
+      // Prepare payload with proper number conversions
+      const payload = {
+        ...formData,
+        capacity: formData.capacity ? Number(formData.capacity) : null,
+        maxBookingHours: formData.maxBookingHours ? Number(formData.maxBookingHours) : null
+      };
+      
+      await api.put(`/api/resources/${id}`, payload);
+      navigate("/resources"); // ✅ Changed to navigate to main Resources page
     } catch (err) {
-      alert("Failed to update resource");
+      console.error("Failed to update resource", err);
+      setError(err.response?.data?.message || "Failed to update resource");
       setSaving(false);
     }
   };
@@ -79,10 +99,13 @@ export default function EditResourcePage() {
             <h1 style={s.title}>Edit Resource</h1>
             <p style={s.subtitle}>Update resource information</p>
           </div>
-          <button style={s.cancelBtn} onClick={() => navigate("/admin/resources")}>
+          <button style={s.cancelBtn} onClick={() => navigate("/resources")}>
             ← Back to Resources
           </button>
         </div>
+
+        {/* Error Message */}
+        {error && <div style={s.errorMessage}>{error}</div>}
 
         {/* Form */}
         <form onSubmit={handleSubmit} style={s.form}>
@@ -95,7 +118,7 @@ export default function EditResourcePage() {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 style={s.input}
-                placeholder="e.g., Computer Lab A"
+                placeholder="e.g., Main Lecture Hall A"
               />
             </div>
 
@@ -106,11 +129,11 @@ export default function EditResourcePage() {
                 onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                 style={s.select}
               >
-                <option value="LAB">LAB</option>
-                <option value="EQUIPMENT">EQUIPMENT</option>
-                <option value="ROOM">ROOM</option>
-                <option value="VEHICLE">VEHICLE</option>
-                <option value="OTHER">OTHER</option>
+                {RESOURCE_TYPES.map(type => (
+                  <option key={type} value={type}>
+                    {type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -132,7 +155,7 @@ export default function EditResourcePage() {
                 value={formData.location}
                 onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                 style={s.input}
-                placeholder="e.g., Building A, Room 101"
+                placeholder="e.g., Building C, Floor 1"
               />
             </div>
 
@@ -143,7 +166,7 @@ export default function EditResourcePage() {
                 value={formData.capacity}
                 onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
                 style={s.input}
-                placeholder="e.g., 30"
+                placeholder="e.g., 60"
               />
             </div>
 
@@ -154,9 +177,9 @@ export default function EditResourcePage() {
                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                 style={s.select}
               >
-                <option value="AVAILABLE">AVAILABLE</option>
-                <option value="MAINTAINING">MAINTAINING</option>
-                <option value="UNAVAILABLE">UNAVAILABLE</option>
+                {RESOURCE_STATUS.map(status => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
               </select>
             </div>
 
@@ -184,7 +207,7 @@ export default function EditResourcePage() {
               <label style={s.label}>Max Booking Hours</label>
               <input
                 type="number"
-                value={formData.maxBookingHours || ""}
+                value={formData.maxBookingHours}
                 onChange={(e) => setFormData({ ...formData, maxBookingHours: e.target.value })}
                 style={s.input}
                 placeholder="e.g., 4"
@@ -193,7 +216,7 @@ export default function EditResourcePage() {
           </div>
 
           <div style={s.formActions}>
-            <button type="button" style={s.secondaryBtn} onClick={() => navigate("/admin/resources")}>
+            <button type="button" style={s.secondaryBtn} onClick={() => navigate("/resources")}>
               Cancel
             </button>
             <button type="submit" style={s.primaryBtn} disabled={saving}>
@@ -291,6 +314,15 @@ const s = {
     cursor: 'pointer',
     fontFamily: 'inherit',
     transition: 'all 0.2s',
+  },
+  errorMessage: {
+    background: 'rgba(251,113,133,0.1)',
+    border: '1px solid rgba(251,113,133,0.3)',
+    borderRadius: 12,
+    color: '#fb7185',
+    padding: '12px 20px',
+    marginBottom: 24,
+    fontSize: 14,
   },
   form: {
     background: 'rgba(8,16,32,0.6)',

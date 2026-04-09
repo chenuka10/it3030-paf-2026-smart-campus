@@ -21,7 +21,7 @@ export default function OAuthSuccess() {
 
     // Save token and fetch user profile, then redirect
     login(token)
-      .then(() => navigate('/profile', { replace: true }))
+      .then(() => navigate('/', { replace: true }))
       .catch(() => navigate('/login', { replace: true }));
   }, []);
 

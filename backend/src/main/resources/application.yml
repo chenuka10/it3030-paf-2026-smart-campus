@@ -28,6 +28,14 @@ spring:
               - profile
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
   
+  # File Upload Configuration (NEW - for Module C)
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB        # Maximum size per file
+      max-request-size: 30MB     # Maximum total request size (3 files × 10MB)
+      file-size-threshold: 2KB   # Files larger than this are written to disk
+  
   mail:
     host: smtp.gmail.com
     port: 587
@@ -45,7 +53,10 @@ app:
     secret: smartcampus_super_secret_key_2026_must_be_long_enough
     expiration: 86400000 # 1 day in ms
   frontend-redirect: http://localhost:3000/oauth-success
-
   frontend-base-url: http://localhost:3000
   mail:
     from: ${MAIL_USERNAME}
+
+# File Storage Configuration (NEW - for Module C)
+file:
+  upload-dir: uploads/tickets  # Directory where ticket attachments are stored

@@ -138,16 +138,25 @@ public class BookingServiceImpl implements BookingService {
         booking.setQrToken(qrToken);
         booking.setQrGeneratedAt(LocalDateTime.now());
 
-        Booking savedBooking = bookingRepository.save(booking);
+        // force immediate DB write
+        Booking savedBooking = bookingRepository.saveAndFlush(booking);
+
+        Booking debugBooking = bookingRepository.findById(bookingId).orElseThrow();
+        System.out.println("DEBUG TOKEN FROM DB: " + debugBooking.getQrToken());
 
         String qrPayload = "BOOKING_TOKEN:" + savedBooking.getQrToken();
         byte[] qrCodeBytes = qrCodeService.generateQrCode(qrPayload, 300, 300);
 
-        bookingEmailService.sendApprovedBookingEmail(savedBooking, qrCodeBytes);
+        try {
+            bookingEmailService.sendApprovedBookingEmail(savedBooking, qrCodeBytes);
+            savedBooking.setQrEmailSentAt(LocalDateTime.now());
+            savedBooking = bookingRepository.saveAndFlush(savedBooking);
+        } catch (Exception e) {
+            // keep approval and token saved even if email sending fails
+            System.err.println("Failed to send booking approval email: " + e.getMessage());
+        }
 
-        savedBooking.setQrEmailSentAt(LocalDateTime.now());
-
-        return mapToResponse(bookingRepository.save(savedBooking));
+        return mapToResponse(savedBooking);
     }
 
     @Override

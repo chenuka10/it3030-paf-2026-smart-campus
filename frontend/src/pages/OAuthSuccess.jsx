@@ -6,108 +6,66 @@ export default function OAuthSuccess() {
   const [searchParams] = useSearchParams();
   const { login } = useAuth();
   const navigate = useNavigate();
-  const called = useRef(false); // Prevent double-invocation in StrictMode
+  const called = useRef(false);
 
   useEffect(() => {
     if (called.current) return;
     called.current = true;
 
     const token = searchParams.get('token');
+    if (!token) { navigate('/login'); return; }
 
-    if (!token) {
-      navigate('/login');
-      return;
-    }
-
-    // Save token and fetch user profile, then redirect
     login(token)
       .then(() => navigate('/', { replace: true }))
       .catch(() => navigate('/login', { replace: true }));
   }, []);
 
   return (
-    <div style={styles.page}>
-      <div style={styles.card}>
-        <div style={styles.spinnerWrap}>
-          <div style={styles.spinner} />
+    <div className="min-h-screen bg-ui-base flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4 text-center">
+
+        {/* Spinner ring */}
+        <div className="w-16 h-16 rounded-full bg-ui-sky/8 border border-ui-sky/20 flex items-center justify-center">
+          <div
+            className="w-8 h-8 rounded-full border-2 border-ui-sky/15"
+            style={{
+              borderTopColor: 'var(--color-ui-sky)',
+              animation: 'spin 0.8s linear infinite',
+            }}
+          />
         </div>
-        <p style={styles.label}>Authenticating</p>
-        <div style={styles.dots}>
-          <span style={{ ...styles.dot, animationDelay: '0s' }} />
-          <span style={{ ...styles.dot, animationDelay: '0.2s' }} />
-          <span style={{ ...styles.dot, animationDelay: '0.4s' }} />
+
+        {/* Label */}
+        <p className="text-[18px] font-bold text-ui-surface tracking-[-0.02em] m-0">
+          Authenticating
+        </p>
+
+        {/* Dots */}
+        <div className="flex gap-1.5">
+          {['0s', '0.2s', '0.4s'].map((delay) => (
+            <span
+              key={delay}
+              className="w-1.5 h-1.5 rounded-full bg-ui-sky inline-block"
+              style={{ animation: `dotPulse 1.4s ease-in-out ${delay} infinite` }}
+            />
+          ))}
         </div>
-        <p style={styles.sub}>Verifying your credentials…</p>
+
+        {/* Sub */}
+        <p className="text-[13px] text-ui-dim font-mono tracking-[0.02em] m-0">
+          Verifying your credentials…
+        </p>
       </div>
+
       <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
         @keyframes dotPulse {
           0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
-          40% { opacity: 1; transform: scale(1); }
+          40%            { opacity: 1;   transform: scale(1);   }
         }
       `}</style>
     </div>
   );
 }
-
-const styles = {
-  page: {
-    minHeight: '100vh',
-    background: '#050b18',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontFamily: "'DM Sans', sans-serif",
-  },
-  card: {
-    textAlign: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 16,
-  },
-  spinnerWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: '50%',
-    background: 'rgba(56,189,248,0.08)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    border: '1px solid rgba(56,189,248,0.2)',
-  },
-  spinner: {
-    width: 32,
-    height: 32,
-    borderRadius: '50%',
-    border: '2px solid rgba(56,189,248,0.15)',
-    borderTopColor: '#38bdf8',
-    animation: 'spin 0.8s linear infinite',
-  },
-  label: {
-    color: '#f0f6ff',
-    fontSize: 18,
-    fontWeight: 700,
-    margin: 0,
-    letterSpacing: '-0.02em',
-  },
-  dots: {
-    display: 'flex',
-    gap: 6,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: '50%',
-    background: '#38bdf8',
-    display: 'inline-block',
-    animation: 'dotPulse 1.4s ease-in-out infinite',
-  },
-  sub: {
-    color: '#3d5a70',
-    fontSize: 13,
-    margin: 0,
-    fontFamily: "'Geist Mono', monospace",
-    letterSpacing: '0.02em',
-  },
-};

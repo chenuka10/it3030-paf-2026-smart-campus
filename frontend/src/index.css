@@ -4,84 +4,72 @@
   /* =========================
      🎨 BRAND COLOR SYSTEM
   ========================= */
-  --color-brand-dark: #091413;
-  --color-brand-primary: #285A48;
-  --color-brand-indigo: #408A71;
-  --color-brand-slate: #B0E4CC;
+  --color-brand-dark:    #2d3330;
+  --color-brand-primary: #6F8F72;
+  --color-brand-indigo:  #4a7a5a;
+  --color-brand-slate:   #BFC6C4;
 
   /* Extended Palette */
-  --color-brand-light: #F8FAFC;
-  --color-brand-muted: #B8D0DB;
-  --color-brand-accent: #FFB38A;
-  --color-brand-success: #6EE7B7;
-  --color-brand-warning: #FACC15;
-  --color-brand-danger: #F87171;
+  --color-brand-light:   #f5f2ec;
+  --color-brand-muted:   #E8E2D8;
+  --color-brand-accent:  #F2A65A;
+  --color-brand-success: #6F8F72;
+  --color-brand-warning: #F2A65A;
+  --color-brand-danger:  #e07a5f;
+
+  /* =========================
+     🖥️ UI SURFACE COLORS (LIGHT THEME)
+  ========================= */
+--color-ui-base:       #f9fafb;
+--color-ui-sky:        #2563eb;
+--color-ui-dim:        #6b7280;
+--color-ui-muted:      #64748b;
+--color-ui-bright:     #111827;
+--color-ui-surface:    #1f2937;
+--color-ui-danger:     #dc2626;
+--color-ui-warn:       #f59e0b;
+--color-ui-green:      #16a34a;
+--color-ui-live:       #22c55e;
 
   /* =========================
      🌈 GRADIENTS
   ========================= */
-  --gradient-primary: linear-gradient(135deg, #81A6C6, #AACDDC);
-  --gradient-soft: linear-gradient(135deg, #F3E3D0, #D2C4B4);
-  --gradient-accent: linear-gradient(135deg, #FFB38A, #F87171);
+  --gradient-primary: linear-gradient(135deg, #BFC6C4, #E8E2D8);
+  --gradient-soft:    linear-gradient(135deg, #E8E2D8, #f5f2ec);
+  --gradient-accent:  linear-gradient(135deg, #F2A65A, #e07a5f);
 
   /* =========================
      ✨ SHADOWS
   ========================= */
-  --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.08);
-  --shadow-medium: 0 8px 30px rgba(0, 0, 0, 0.12);
-  --shadow-glow: 0 0 20px rgba(129, 166, 198, 0.5);
+  --shadow-soft:   0 4px 20px rgba(0, 0, 0, 0.06);
+  --shadow-medium: 0 8px 30px rgba(0, 0, 0, 0.10);
+  --shadow-glow:   0 0 20px rgba(111, 143, 114, 0.3);
 
   /* =========================
      🔤 TYPOGRAPHY
   ========================= */
-  --font-sans: "Inter", sans-serif;
+  --font-sans:    "Inter", sans-serif;
   --font-display: "Poppins", sans-serif;
-
-  /* =========================
-     📏 SPACING SCALE
-  ========================= */
-  --spacing-xs: 0.25rem;
-  --spacing-sm: 0.5rem;
-  --spacing-md: 1rem;
-  --spacing-lg: 2rem;
-  --spacing-xl: 4rem;
 
   /* =========================
      🎞️ ANIMATIONS
   ========================= */
-  --animate-fade-in-up: fade-in-up 0.6s ease-out;
-  --animate-fade-in: fade-in 0.5s ease-in;
-  --animate-slide-in: slide-in 0.5s ease-out;
-  --animate-bounce-soft: bounce-soft 1s infinite;
-
-  @keyframes rotate-blob {
-    0% { transform: rotate(0deg) scale(1); }
-    100% { transform: rotate(360deg) scale(1.2); }
-  }
+  --animate-fade-in-up:   fade-in-up 0.6s ease-out;
+  --animate-fade-in:      fade-in 0.5s ease-in;
+  --animate-slide-in:     slide-in 0.5s ease-out;
+  --animate-bounce-soft:  bounce-soft 1s infinite;
 
   @keyframes fade-in {
     from { opacity: 0; }
-    to { opacity: 1; }
+    to   { opacity: 1; }
   }
-
   @keyframes slide-in {
-    from {
-      transform: translateX(-30px);
-      opacity: 0;
-    }
-    to {
-      transform: translateX(0);
-      opacity: 1;
-    }
+    from { transform: translateX(-30px); opacity: 0; }
+    to   { transform: translateX(0);     opacity: 1; }
   }
-
   @keyframes bounce-soft {
-    0%, 100% {
-      transform: translateY(0);
-    }
-    50% {
-      transform: translateY(-6px);
-    }
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(-6px); }
   }
 
   /* =========================
@@ -93,45 +81,44 @@
   --radius-xl: 30px;
 }
 
-/* Custom utility for that organic shape you provided */
 .organic-shape {
   border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
 }
 
 @layer base {
   body {
-    @apply bg-brand-dark text-white antialiased font-sans;
+    @apply bg-ui-base text-ui-bright antialiased font-sans;
   }
-
   h1, h2, h3 {
-    @apply font-display;
+    @apply font-display text-ui-surface;
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply px-6 py-3 rounded-lg text-white;
-    background: var(--gradient-primary);
+    @apply px-6 py-3 rounded-lg text-white font-semibold;
+    background: var(--gradient-accent);
     box-shadow: var(--shadow-soft);
     transition: all 0.3s ease;
   }
-
   .btn-primary:hover {
     box-shadow: var(--shadow-medium);
     transform: translateY(-2px);
   }
-
   .card {
-    @apply p-6 rounded-xl;
-    background: white;
-    color: black;
+    @apply p-6 rounded-xl bg-ui-base border border-ui-sky/20;
     box-shadow: var(--shadow-soft);
   }
-
   .glass {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255,255,255,0.6);
     backdrop-filter: blur(12px);
     border-radius: var(--radius-lg);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(111,143,114,0.2);
   }
+}
+
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0px   rgba(111, 143, 114, 0.7); }
+  70%  { box-shadow: 0 0 0 10px  rgba(111, 143, 114, 0);   }
+  100% { box-shadow: 0 0 0 0px   rgba(111, 143, 114, 0);   }
 }

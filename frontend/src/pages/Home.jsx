@@ -7,105 +7,42 @@ export default function Home() {
 
   return (
     <Layout>
-      <div style={s.container}>
-        <div style={s.card}>
-          <div style={s.badge}>WORK IN PROGRESS</div>
-          
-          <h1 style={s.title}>
-            Welcome back, <span style={s.accent}>{firstName}</span>.
+      <div className="h-[80vh] flex items-center justify-center p-5">
+        <div className="max-w-[500px] text-center px-10 py-10 card">
+
+          {/* Badge */}
+          <div className="inline-block px-3 py-1.5 bg-ui-sky/10 text-ui-sky text-[11px] font-bold tracking-[0.1em] rounded-full mb-6 border border-ui-sky/20">
+            WORK IN PROGRESS
+          </div>
+
+          {/* Title */}
+          <h1 className="text-[32px] font-bold mb-4">
+            Welcome back, <span className="text-ui-sky">{firstName}</span>.
           </h1>
-          
-          <p style={s.subtitle}>
-            We're currently refining your SmartCampus experience. 
+
+          {/* Subtitle */}
+          <p className="text-base text-ui-muted leading-relaxed mb-8 mx-auto">
+            We're currently refining your SmartCampus experience.
             The full dashboard will be available shortly.
           </p>
 
-          <div style={s.divider} />
+          {/* Divider */}
+          <div
+            className="h-px mb-8"
+            style={{ background: 'linear-gradient(90deg, transparent, var(--color-ui-sky), transparent)' }}
+          />
 
-          <div style={s.status}>
-            <span style={s.pulse} />
-            System Status: <span style={s.statusText}>Building Greatness</span>
+          {/* Status */}
+          <div className="flex items-center justify-center gap-2.5 text-[13px] text-ui-dim font-mono">
+            <span
+              className="w-2 h-2 rounded-full bg-ui-live shrink-0"
+              style={{ animation: 'pulse 2s infinite' }}
+            />
+            System Status: <span className="text-ui-sky">Building Greatness</span>
           </div>
+
         </div>
       </div>
     </Layout>
   );
 }
-
-const s = {
-  container: {
-    height: '80vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '20px',
-  },
-  card: {
-    maxWidth: '500px',
-    textAlign: 'center',
-    padding: '40px',
-    background: 'rgba(10, 20, 40, 0.4)',
-    border: '1px solid rgba(56, 189, 248, 0.15)',
-    borderRadius: '24px',
-    backdropFilter: 'blur(10px)',
-  },
-  badge: {
-    display: 'inline-block',
-    padding: '6px 12px',
-    background: 'rgba(56, 189, 248, 0.1)',
-    color: '#38bdf8',
-    fontSize: '11px',
-    fontWeight: '700',
-    letterSpacing: '0.1em',
-    borderRadius: '100px',
-    marginBottom: '24px',
-    border: '1px solid rgba(56, 189, 248, 0.2)',
-  },
-  title: {
-    fontSize: '32px',
-    color: '#f0f6ff',
-    margin: '0 0 16px 0',
-    fontWeight: '700',
-  },
-  accent: {
-    color: '#38bdf8',
-  },
-  subtitle: {
-    fontSize: '16px',
-    color: '#7a9ab5',
-    lineHeight: '1.6',
-    margin: '0 auto 32px auto',
-  },
-  divider: {
-    height: '1px',
-    background: 'linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.2), transparent)',
-    marginBottom: '32px',
-  },
-  status: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '10px',
-    fontSize: '13px',
-    color: '#3d5a70',
-    fontFamily: "'Geist Mono', monospace",
-  },
-  statusText: {
-    color: '#38bdf8',
-  },
-  pulse: {
-    width: '8px',
-    height: '8px',
-    backgroundColor: '#22c55e',
-    borderRadius: '50%',
-    boxShadow: '0 0 0 rgba(34, 197, 94, 0.4)',
-    animation: 'pulse 2s infinite',
-  },
-};
-
-// Add this to your global CSS if you want the dot to pulse:
-// @keyframes pulse {
-//   0% { box-shadow: 0 0 0 0px rgba(34, 197, 94, 0.7); }
-//   70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
-//   100% { box-shadow: 0 0 0 0px rgba(34, 197, 94, 0); }
-// }

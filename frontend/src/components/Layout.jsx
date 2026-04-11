@@ -22,38 +22,31 @@ export default function Layout({ children, adminOnly = false }) {
   if (adminOnly && user.role !== 'ADMIN') return null;
 
   return (
-  <div style={s.root}>
-    {!isAdminPage && <Navbar />}   {/* ✅ hide navbar on admin pages */}
+    <div className="min-h-screen bg-ui-base flex flex-col">
+      {!isAdminPage && <Navbar />}
 
-    <div style={s.body}>
-      {isAdminPage && <AdminSidebar />}   {/* ✅ only admin pages get sidebar */}
+      <div className="flex flex-1">
+        {isAdminPage && <AdminSidebar />}
 
-      <main style={{ ...s.main, ...(isAdminPage ? s.mainWithSidebar : {}) }}>
-        {children}
-      </main>
-    </div>
-  </div>
-);
-}
-
-function Spinner() {
-  return (
-    <div style={{ minHeight: '100vh', background: '#050b18', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ width: 32, height: 32, borderRadius: '50%', border: '2px solid rgba(56,189,248,0.15)', borderTopColor: '#38bdf8', animation: 'spin 0.8s linear infinite' }} />
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <main className={`flex-1 min-w-0 ${isAdminPage ? 'p-0' : ''}`}>
+          {children}
+        </main>
+      </div>
     </div>
   );
 }
 
-const s = {
-  root: {
-    minHeight: '100vh',
-    background: '#050b18',
-    fontFamily: "'DM Sans', sans-serif",
-    color: '#f0f6ff',
-    display: 'flex', flexDirection: 'column',
-  },
-  body: { display: 'flex', flex: 1 },
-  main: { flex: 1, minWidth: 0 },
-  mainWithSidebar: { padding: 0 },
-};
+function Spinner() {
+  return (
+    <div className="min-h-screen bg-ui-base flex items-center justify-center">
+      <div
+        className="w-8 h-8 rounded-full border-2 border-ui-sky/15"
+        style={{
+          borderTopColor: 'var(--color-ui-sky)',
+          animation: 'spin 0.8s linear infinite',
+        }}
+      />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}

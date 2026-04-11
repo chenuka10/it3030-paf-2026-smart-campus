@@ -11,53 +11,61 @@ export default function Login() {
   }, [user, loading, navigate]);
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-brand-dark">
-      {/* Background Grid - Using Primary color with low opacity */}
+    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-ui-base">
+
+      {/* Background grid */}
       <div className="absolute inset-0 grid grid-cols-12 opacity-5 pointer-events-none" aria-hidden="true">
         {Array.from({ length: 120 }).map((_, i) => (
-          <div key={i} className="border-[0.5px] border-brand-primary/30 h-24" />
+          <div key={i} className="border-[0.5px] border-ui-sky/30 h-24" />
         ))}
       </div>
 
-      {/* Decorative Glow - Mixing Primary and Indigo */}
+      {/* Decorative glows */}
       <div className="absolute w-[500px] h-[500px] rounded-full bg-brand-primary/10 blur-[100px] -top-20 -left-20 animate-pulse" />
-      <div className="absolute w-[500px] h-[500px] rounded-full bg-brand-indigo/10 blur-[100px] -bottom-20 -right-20" />
+      <div className="absolute w-[500px] h-[500px] rounded-full bg-brand-muted/20 blur-[100px] -bottom-20 -right-20" />
 
       {/* Card */}
-      <div className="relative z-10 w-full max-w-[420px] p-10 bg-slate-900/60 border border-white/10 rounded-3xl backdrop-blur-2xl shadow-2xl animate-fade-in-up">
-        
+      <div
+        className="relative z-10 w-full max-w-[420px] p-10 glass shadow-2xl"
+        style={{ animation: 'var(--animate-fade-in-up)' }}
+      >
         {/* Logo */}
         <div className="mb-8">
           <div className="w-12 h-12 rounded-xl bg-brand-primary/20 border border-brand-primary/30 flex items-center justify-center">
-            <div className="w-5 h-5 bg-brand-primary rotate-45 rounded-sm shadow-[0_0_15px_rgba(56,189,248,0.5)]" />
+            <div
+              className="w-5 h-5 rotate-45 rounded-sm bg-brand-primary"
+              style={{ boxShadow: 'var(--shadow-glow)' }}
+            />
           </div>
         </div>
 
-        <span className="text-[11px] font-mono tracking-widest text-brand-primary uppercase font-bold">
+        <span className="text-[11px] font-mono tracking-widest text-ui-sky uppercase font-bold">
           SLIIT SmartCampus
         </span>
 
-        <h1 className="text-5xl font-black text-white mt-2 mb-4 tracking-tighter">
+        <h1 className="text-5xl font-black mt-2 mb-4 tracking-tighter">
           Welcome<br />
-          <span className="text-brand-indigo">back.</span>
+          <span className="text-brand-primary">back.</span>
         </h1>
 
-        <p className="text-brand-slate text-sm leading-relaxed mb-10">
+        <p className="text-ui-muted text-sm leading-relaxed mb-10">
           The central hub for SLIIT research and campus management.
         </p>
 
+        {/* ✅ FIXED HERE */}
         <a
           href="http://localhost:8081/oauth2/authorization/google"
-          className="flex items-center justify-center gap-3 w-full py-4 rounded-xl border border-white/10 text-white font-bold transition-all duration-300 hover:bg-white hover:text-brand-dark hover:-translate-y-1 hover:shadow-brand-primary/20 hover:shadow-lg no-underline"
+          className="flex items-center justify-center gap-3 w-full py-4 rounded-xl border border-ui-sky/20 text-ui-bright font-bold transition-all duration-300 hover:bg-ui-sky/10 hover:border-ui-sky/40 hover:-translate-y-1 hover:shadow-lg no-underline"
         >
           <GoogleIcon />
           Continue with Google
         </a>
 
-        <p className="text-[11px] text-brand-slate/60 text-center mt-8 font-mono">
+        <p className="text-[11px] text-ui-dim/60 text-center mt-8 font-mono">
           SECURE INSTITUTIONAL ACCESS ONLY
         </p>
       </div>
+
     </div>
   );
 }

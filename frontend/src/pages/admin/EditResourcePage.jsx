@@ -4,86 +4,82 @@ import { useAuth } from "../../context/AuthContext";
 import api from "../../api/axios";
 import Layout from "../../components/Layout";
 
-// ✅ FIXED: Match the types from AddResourcePage and backend
-const RESOURCE_TYPES = ["LECTURE_HALL", "LAB", "MEETING_ROOM", "EQUIPMENT", "OUTDOOR", "AUDITORIUM", "CLASSROOM", "SPORTS"];
-const RESOURCE_STATUS = ["ACTIVE", "OUT_OF_SERVICE"]; // ✅ Fixed: Match backend enum
+const RESOURCE_TYPES  = ["LECTURE_HALL", "LAB", "MEETING_ROOM", "EQUIPMENT", "OUTDOOR", "AUDITORIUM", "CLASSROOM", "SPORTS"];
+const RESOURCE_STATUS = ["ACTIVE", "OUT_OF_SERVICE"];
 
 export default function EditResourcePage() {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const { id } = useParams();
+  const navigate  = useNavigate();
+  const { id }    = useParams();
 
   const [formData, setFormData] = useState({
-    name: "",
-    type: "LECTURE_HALL",
-    description: "",
-    location: "",
-    capacity: "",
-    status: "ACTIVE", // ✅ Changed from "AVAILABLE" to "ACTIVE"
-    availableFrom: "",
-    availableTo: "",
-    maxBookingHours: ""
+    name:            "",
+    type:            "LECTURE_HALL",
+    description:     "",
+    location:        "",
+    capacity:        "",
+    status:          "ACTIVE",
+    availableFrom:   "",
+    availableTo:     "",
+    maxBookingHours: "",
   });
+
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
+  const [saving,  setSaving]  = useState(false);
+  const [error,   setError]   = useState(null);
 
   useEffect(() => {
-    if (!user) {
-      navigate("/login");
-      return;
-    }
+    if (!user) { navigate("/login"); return; }
     fetchResource();
   }, [user, navigate, id]);
 
   const fetchResource = async () => {
     try {
       const { data } = await api.get(`/api/resources/${id}`);
-      // Ensure status is mapped correctly if backend returns different format
       setFormData({
         ...data,
-        capacity: data.capacity || "",
-        maxBookingHours: data.maxBookingHours || ""
+        capacity:        data.capacity        || "",
+        maxBookingHours: data.maxBookingHours || "",
       });
-    } catch (err) {
-      console.error("Failed to fetch resource", err);
+    } catch {
       setError("Failed to load resource");
       setTimeout(() => navigate("/resources"), 2000);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSaving(true);
-    setError(null);
-    
+    setSaving(true); setError(null);
     try {
-      // Prepare payload with proper number conversions
       const payload = {
         ...formData,
-        capacity: formData.capacity ? Number(formData.capacity) : null,
-        maxBookingHours: formData.maxBookingHours ? Number(formData.maxBookingHours) : null
+        capacity:        formData.capacity        ? Number(formData.capacity)        : null,
+        maxBookingHours: formData.maxBookingHours ? Number(formData.maxBookingHours) : null,
       };
-      
       await api.put(`/api/resources/${id}`, payload);
-      navigate("/resources"); // ✅ Changed to navigate to main Resources page
+      navigate("/resources");
     } catch (err) {
-      console.error("Failed to update resource", err);
       setError(err.response?.data?.message || "Failed to update resource");
       setSaving(false);
     }
   };
 
+  const set = (field) => (e) => setFormData(prev => ({ ...prev, [field]: e.target.value }));
+
   if (!user) return null;
-  
+
+  const inputClass = "w-full bg-ui-base border border-ui-sky/15 rounded-lg px-3.5 py-2.5 text-ui-bright text-[14px] outline-none transition-all duration-200 box-border focus:border-ui-sky";
+  const labelClass = "text-[12px] font-semibold text-ui-muted tracking-[0.05em] font-mono uppercase";
+
   if (loading) {
     return (
       <Layout adminOnly>
-        <div style={s.loadingContainer}>
-          <div style={s.spinner} />
-          <p style={s.loadingText}>Loading resource...</p>
+        <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+          <div
+            className="w-10 h-10 rounded-full border-[3px] border-ui-sky/15"
+            style={{ borderTopColor: 'var(--color-ui-sky)', animation: 'spin 0.8s linear infinite' }}
+          />
+          <p className="text-ui-muted text-[14px]">Loading resource...</p>
         </div>
       </Layout>
     );
@@ -91,135 +87,157 @@ export default function EditResourcePage() {
 
   return (
     <Layout adminOnly>
-      <div style={s.container}>
+      <div
+        className="px-9 py-8 max-w-[900px] mx-auto w-full"
+        style={{ animation: 'fadeUp 0.4s ease' }}
+      >
+
         {/* Header */}
-        <div style={s.header}>
+        <div className="flex justify-between items-end mb-8 flex-wrap gap-4">
           <div>
-            <div style={s.sectionLabel}>RESOURCE MANAGEMENT</div>
-            <h1 style={s.title}>Edit Resource</h1>
-            <p style={s.subtitle}>Update resource information</p>
+            <div className="text-[10px] font-bold tracking-[0.15em] text-ui-warn font-mono uppercase mb-2">
+              RESOURCE MANAGEMENT
+            </div>
+            <h1 className="text-[34px] font-extrabold m-0 mb-2 tracking-[-0.04em]">
+              Edit Resource
+            </h1>
+            <p className="text-ui-muted text-[15px] m-0">
+              Update resource information
+            </p>
           </div>
-          <button style={s.cancelBtn} onClick={() => navigate("/resources")}>
+          <button
+            className="bg-ui-sky/8 border border-ui-sky/20 rounded-[10px] text-ui-sky px-5 py-2.5 text-[13px] font-semibold cursor-pointer transition-all duration-200 hover:bg-ui-sky/15 hover:border-ui-sky/40"
+            onClick={() => navigate("/resources")}
+          >
             ← Back to Resources
           </button>
         </div>
 
-        {/* Error Message */}
-        {error && <div style={s.errorMessage}>{error}</div>}
+        {/* Error */}
+        {error && (
+          <div className="bg-ui-danger/10 border border-ui-danger/30 rounded-xl text-ui-danger px-5 py-3 mb-6 text-[14px]">
+            {error}
+          </div>
+        )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} style={s.form}>
-          <div style={s.formGrid}>
-            <div style={s.formGroup}>
-              <label style={s.label}>Name *</label>
+        <form
+          onSubmit={handleSubmit}
+          className="bg-ui-base/60 border border-ui-sky/12 rounded-2xl p-8 backdrop-blur-md"
+        >
+          <div className="grid grid-cols-2 gap-5">
+
+            {/* Name */}
+            <div className="flex flex-col gap-2">
+              <label className={labelClass}>Name *</label>
               <input
-                type="text"
-                required
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                style={s.input}
+                type="text" required
+                value={formData.name} onChange={set('name')}
                 placeholder="e.g., Main Lecture Hall A"
+                className={inputClass}
               />
             </div>
 
-            <div style={s.formGroup}>
-              <label style={s.label}>Type *</label>
-              <select
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                style={s.select}
-              >
-                {RESOURCE_TYPES.map(type => (
-                  <option key={type} value={type}>
-                    {type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())}
+            {/* Type */}
+            <div className="flex flex-col gap-2">
+              <label className={labelClass}>Type *</label>
+              <select value={formData.type} onChange={set('type')} className={inputClass}>
+                {RESOURCE_TYPES.map(t => (
+                  <option key={t} value={t}>
+                    {t.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())}
                   </option>
                 ))}
               </select>
             </div>
 
-            <div style={s.formGroupFull}>
-              <label style={s.label}>Description</label>
+            {/* Description — full width */}
+            <div className="flex flex-col gap-2 col-span-2">
+              <label className={labelClass}>Description</label>
               <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                style={s.textarea}
+                rows={4}
+                value={formData.description} onChange={set('description')}
                 placeholder="Describe the resource..."
-                rows="4"
+                className={`${inputClass} resize-y`}
               />
             </div>
 
-            <div style={s.formGroup}>
-              <label style={s.label}>Location</label>
+            {/* Location */}
+            <div className="flex flex-col gap-2">
+              <label className={labelClass}>Location</label>
               <input
                 type="text"
-                value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                style={s.input}
+                value={formData.location} onChange={set('location')}
                 placeholder="e.g., Building C, Floor 1"
+                className={inputClass}
               />
             </div>
 
-            <div style={s.formGroup}>
-              <label style={s.label}>Capacity</label>
+            {/* Capacity */}
+            <div className="flex flex-col gap-2">
+              <label className={labelClass}>Capacity</label>
               <input
                 type="number"
-                value={formData.capacity}
-                onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
-                style={s.input}
+                value={formData.capacity} onChange={set('capacity')}
                 placeholder="e.g., 60"
+                className={inputClass}
               />
             </div>
 
-            <div style={s.formGroup}>
-              <label style={s.label}>Status</label>
-              <select
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                style={s.select}
-              >
-                {RESOURCE_STATUS.map(status => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
+            {/* Status */}
+            <div className="flex flex-col gap-2">
+              <label className={labelClass}>Status</label>
+              <select value={formData.status} onChange={set('status')} className={inputClass}>
+                {RESOURCE_STATUS.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
 
-            <div style={s.formGroup}>
-              <label style={s.label}>Available From</label>
+            {/* Available From */}
+            <div className="flex flex-col gap-2">
+              <label className={labelClass}>Available From</label>
               <input
                 type="time"
-                value={formData.availableFrom || ""}
-                onChange={(e) => setFormData({ ...formData, availableFrom: e.target.value })}
-                style={s.input}
+                value={formData.availableFrom || ""} onChange={set('availableFrom')}
+                className={inputClass}
               />
             </div>
 
-            <div style={s.formGroup}>
-              <label style={s.label}>Available To</label>
+            {/* Available To */}
+            <div className="flex flex-col gap-2">
+              <label className={labelClass}>Available To</label>
               <input
                 type="time"
-                value={formData.availableTo || ""}
-                onChange={(e) => setFormData({ ...formData, availableTo: e.target.value })}
-                style={s.input}
+                value={formData.availableTo || ""} onChange={set('availableTo')}
+                className={inputClass}
               />
             </div>
 
-            <div style={s.formGroup}>
-              <label style={s.label}>Max Booking Hours</label>
+            {/* Max Booking Hours */}
+            <div className="flex flex-col gap-2">
+              <label className={labelClass}>Max Booking Hours</label>
               <input
                 type="number"
-                value={formData.maxBookingHours}
-                onChange={(e) => setFormData({ ...formData, maxBookingHours: e.target.value })}
-                style={s.input}
+                value={formData.maxBookingHours} onChange={set('maxBookingHours')}
                 placeholder="e.g., 4"
+                className={inputClass}
               />
             </div>
+
           </div>
 
-          <div style={s.formActions}>
-            <button type="button" style={s.secondaryBtn} onClick={() => navigate("/resources")}>
+          {/* Form Actions */}
+          <div className="flex gap-3 justify-end mt-8 pt-6 border-t border-ui-sky/8">
+            <button
+              type="button"
+              className="bg-transparent border border-ui-sky/20 rounded-lg text-ui-muted px-6 py-2.5 text-[14px] font-semibold cursor-pointer transition-all duration-200 hover:border-ui-sky/40 hover:text-ui-bright"
+              onClick={() => navigate("/resources")}
+            >
               Cancel
             </button>
-            <button type="submit" style={s.primaryBtn} disabled={saving}>
+            <button
+              type="submit"
+              disabled={saving}
+              className="btn-primary disabled:opacity-50"
+            >
               {saving ? "Updating..." : "Update Resource"}
             </button>
           </div>
@@ -227,202 +245,9 @@ export default function EditResourcePage() {
       </div>
 
       <style>{`
-        @keyframes spin {
-          to {
-            transform: rotate(360deg);
-          }
-        }
-        @keyframes fadeUp {
-          from {
-            opacity: 0;
-            transform: translateY(8px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
+        @keyframes spin    { to { transform: rotate(360deg); } }
+        @keyframes fadeUp  { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
     </Layout>
   );
 }
-
-const s = {
-  container: {
-    padding: '32px 36px',
-    maxWidth: 900,
-    margin: '0 auto',
-    width: '100%',
-    animation: 'fadeUp 0.4s ease',
-  },
-  loadingContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '400px',
-    gap: '16px',
-  },
-  spinner: {
-    width: 40,
-    height: 40,
-    border: '3px solid rgba(56,189,248,0.15)',
-    borderTopColor: '#38bdf8',
-    borderRadius: '50%',
-    animation: 'spin 0.8s linear infinite',
-  },
-  loadingText: {
-    color: '#7a9ab5',
-    fontSize: 14,
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginBottom: 32,
-    flexWrap: 'wrap',
-    gap: 16,
-  },
-  sectionLabel: {
-    fontSize: 10,
-    fontWeight: 700,
-    letterSpacing: '0.15em',
-    color: '#fbbf24',
-    fontFamily: "'Geist Mono', monospace",
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: 34,
-    fontWeight: 800,
-    margin: '0 0 8px',
-    letterSpacing: '-0.04em',
-    color: '#f0f6ff',
-  },
-  subtitle: {
-    color: '#7a9ab5',
-    fontSize: 15,
-    margin: 0,
-  },
-  cancelBtn: {
-    background: 'rgba(56,189,248,0.08)',
-    border: '1px solid rgba(56,189,248,0.2)',
-    borderRadius: 10,
-    color: '#38bdf8',
-    padding: '10px 20px',
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    transition: 'all 0.2s',
-  },
-  errorMessage: {
-    background: 'rgba(251,113,133,0.1)',
-    border: '1px solid rgba(251,113,133,0.3)',
-    borderRadius: 12,
-    color: '#fb7185',
-    padding: '12px 20px',
-    marginBottom: 24,
-    fontSize: 14,
-  },
-  form: {
-    background: 'rgba(8,16,32,0.6)',
-    border: '1px solid rgba(56,189,248,0.12)',
-    borderRadius: 16,
-    padding: '32px',
-    backdropFilter: 'blur(12px)',
-  },
-  formGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: '20px',
-  },
-  formGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-  },
-  formGroupFull: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-    gridColumn: 'span 2',
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: 600,
-    color: '#7a9ab5',
-    letterSpacing: '0.05em',
-    fontFamily: "'Geist Mono', monospace",
-    textTransform: 'uppercase',
-  },
-  input: {
-    width: '100%',
-    padding: '10px 14px',
-    background: 'rgba(10,20,40,0.7)',
-    border: '1px solid rgba(56,189,248,0.15)',
-    borderRadius: 8,
-    color: '#f0f6ff',
-    fontSize: 14,
-    fontFamily: "'DM Sans', sans-serif",
-    outline: 'none',
-    transition: 'all 0.2s',
-    boxSizing: 'border-box',
-  },
-  select: {
-    width: '100%',
-    padding: '10px 14px',
-    background: 'rgba(10,20,40,0.7)',
-    border: '1px solid rgba(56,189,248,0.15)',
-    borderRadius: 8,
-    color: '#f0f6ff',
-    fontSize: 14,
-    fontFamily: "'DM Sans', sans-serif",
-    outline: 'none',
-    cursor: 'pointer',
-  },
-  textarea: {
-    width: '100%',
-    padding: '10px 14px',
-    background: 'rgba(10,20,40,0.7)',
-    border: '1px solid rgba(56,189,248,0.15)',
-    borderRadius: 8,
-    color: '#f0f6ff',
-    fontSize: 14,
-    fontFamily: "'DM Sans', sans-serif",
-    outline: 'none',
-    resize: 'vertical',
-    boxSizing: 'border-box',
-  },
-  formActions: {
-    display: 'flex',
-    gap: 12,
-    justifyContent: 'flex-end',
-    marginTop: 32,
-    paddingTop: 24,
-    borderTop: '1px solid rgba(56,189,248,0.08)',
-  },
-  primaryBtn: {
-    background: '#38bdf8',
-    border: 'none',
-    borderRadius: 8,
-    color: '#050b18',
-    padding: '10px 24px',
-    fontSize: 14,
-    fontWeight: 700,
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    transition: 'all 0.2s',
-  },
-  secondaryBtn: {
-    background: 'transparent',
-    border: '1px solid rgba(56,189,248,0.2)',
-    borderRadius: 8,
-    color: '#7a9ab5',
-    padding: '10px 24px',
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    transition: 'all 0.2s',
-  },
-};

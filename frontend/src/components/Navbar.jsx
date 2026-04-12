@@ -1,151 +1,129 @@
+import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const NAV_LINKS = [
-  { label: 'Home',      path: '/home',    icon: '⌂' },
+  { label: 'Home',      path: '/home',      icon: '⌂' },
   { label: 'Resources', path: '/resources', icon: '◫' },
-  { label: 'Profile',   path: '/profile', icon: '◉' },
+  { label: 'Profile',   path: '/profile',   icon: '◉' },
 ];
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const [logoutHovered, setLogoutHovered] = useState(false);
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
   return (
-    <nav style={s.nav}>
+    <nav className="flex items-center gap-2 px-7 h-[60px] bg-ui-base/95 border-b border-ui-sky/10 backdrop-blur-md sticky top-0 z-[200]">
+
       {/* Brand */}
-      <div style={s.brand} onClick={() => navigate('/home')}>
-        <div style={s.logoRing}>
-          <div style={s.logoDiamond} />
+      <div
+        className="flex items-center gap-2.5 cursor-pointer mr-4 shrink-0"
+        onClick={() => navigate('/home')}
+      >
+        <div className="w-[34px] h-[34px] rounded-[9px] bg-ui-sky/10 border border-ui-sky/25 flex items-center justify-center">
+          <div
+            className="w-3.5 h-3.5 rounded-[3px] rotate-45"
+            style={{ background: 'var(--gradient-primary)' }}
+          />
         </div>
         <div>
-          <div style={s.brandName}>SmartCampus</div>
-          <div style={s.brandSub}>SLIIT</div>
+          <div className="text-[14px] font-extrabold text-ui-surface tracking-tight leading-[1.1]">
+            SmartCampus
+          </div>
+          <div className="text-[10px] text-ui-dim font-mono tracking-[0.1em]">
+            SLIIT
+          </div>
         </div>
       </div>
 
       {/* Nav links */}
-      <div style={s.links}>
+      <div className="flex items-center gap-0.5 flex-1">
         {NAV_LINKS.map(link => {
           const active = pathname === link.path || pathname.startsWith(link.path + '/');
           return (
-            <button key={link.path}
-              style={{ ...s.link, ...(active ? s.linkActive : {}) }}
+            <button
+              key={link.path}
               onClick={() => navigate(link.path)}
-              onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#d0e8ff'; }}
-              onMouseLeave={e => { if (!active) e.currentTarget.style.color = '#7a9ab5'; }}>
-              <span style={s.linkIcon}>{link.icon}</span>
+              className={`
+                flex items-center gap-1.5 relative bg-transparent border-none
+                text-[13px] font-semibold cursor-pointer px-3 py-1.5 rounded-lg
+                tracking-[-0.01em] transition-colors duration-200
+                ${active ? 'text-ui-surface' : 'text-ui-muted hover:text-ui-bright'}
+              `}
+            >
+              <span className="text-[13px] opacity-80">{link.icon}</span>
               {link.label}
-              {active && <div style={s.activePip} />}
+              {active && (
+                <div className="absolute bottom-[-2px] left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-ui-sky" />
+              )}
             </button>
           );
         })}
 
         {user?.role === 'ADMIN' && (
           <button
-            style={{ ...s.link, ...(pathname.startsWith('/admin') ? s.linkActive : {}), ...s.adminLink }}
             onClick={() => navigate('/admin')}
-            onMouseEnter={e => { if (!pathname.startsWith('/admin')) { e.currentTarget.style.color = '#fb7185'; e.currentTarget.style.background = 'rgba(251,113,133,0.08)'; } }}
-            onMouseLeave={e => { if (!pathname.startsWith('/admin')) { e.currentTarget.style.color = '#fb7185'; e.currentTarget.style.background = 'rgba(251,113,133,0.06)'; } }}>
-            <span style={s.linkIcon}>⚙</span>
+            className={`
+              flex items-center gap-1.5 relative text-[13px] font-semibold cursor-pointer
+              px-3 py-1.5 rounded-lg tracking-[-0.01em] transition-colors duration-200
+              text-ui-danger border border-ui-danger/15 bg-ui-danger/5
+              hover:bg-ui-danger/10 ml-2
+              ${pathname.startsWith('/admin') ? 'text-ui-danger' : ''}
+            `}
+          >
+            <span className="text-[13px] opacity-80">⚙</span>
             Admin
-            {pathname.startsWith('/admin') && <div style={{ ...s.activePip, background: '#fb7185' }} />}
+            {pathname.startsWith('/admin') && (
+              <div className="absolute bottom-[-2px] left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-ui-danger" />
+            )}
           </button>
         )}
       </div>
 
       {/* Right — avatar + logout */}
-      <div style={s.right}>
+      <div className="flex items-center gap-2.5 ml-auto">
         {user && (
-          <div style={s.userChip} onClick={() => navigate('/profile')}>
+          <div
+            className="flex items-center gap-2 py-[5px] pr-3 pl-1.5 bg-ui-sky/5 border border-ui-sky/12 rounded-[10px] cursor-pointer"
+            onClick={() => navigate('/profile')}
+          >
             {user.imageUrl
-              ? <img src={user.imageUrl} alt="" style={s.avatar} />
-              : <div style={s.avatarFallback}>{user.name?.[0]?.toUpperCase()}</div>}
-            <div style={s.userInfo}>
-              <div style={s.userName}>{user.name?.split(' ')[0]}</div>
-              <div style={s.userRole}>{user.role}</div>
+              ? <img src={user.imageUrl} alt="" className="w-[26px] h-[26px] rounded-full border border-ui-sky/30 block" />
+              : (
+                <div
+                  className="w-[26px] h-[26px] rounded-full flex items-center justify-center text-[11px] font-extrabold text-ui-surface"
+                  style={{ background: 'var(--gradient-primary)' }}
+                >
+                  {user.name?.[0]?.toUpperCase()}
+                </div>
+              )
+            }
+            <div className="leading-[1.2]">
+              <div className="text-[12px] font-bold text-ui-bright">{user.name?.split(' ')[0]}</div>
+              <div className="text-[10px] text-ui-dim font-mono tracking-[0.06em]">{user.role}</div>
             </div>
           </div>
         )}
-        <button style={s.logoutBtn} onClick={handleLogout}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(251,113,133,0.12)'; e.currentTarget.style.color = '#fb7185'; e.currentTarget.style.borderColor = 'rgba(251,113,133,0.3)'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#3d5a70'; e.currentTarget.style.borderColor = 'rgba(56,189,248,0.12)'; }}>
+
+        <button
+          onClick={handleLogout}
+          onMouseEnter={() => setLogoutHovered(true)}
+          onMouseLeave={() => setLogoutHovered(false)}
+          className={`
+            w-8 h-8 rounded-lg border flex items-center justify-center
+            cursor-pointer text-[14px] transition-all duration-200 bg-transparent
+            ${logoutHovered
+              ? 'bg-ui-danger/10 text-ui-danger border-ui-danger/30'
+              : 'text-ui-dim border-ui-sky/12'}
+          `}
+        >
           ⏻
         </button>
       </div>
     </nav>
   );
 }
-
-const s = {
-  nav: {
-    display: 'flex', alignItems: 'center', gap: 8,
-    padding: '0 28px', height: 60,
-    background: 'rgba(5,11,24,0.95)',
-    borderBottom: '1px solid rgba(56,189,248,0.1)',
-    backdropFilter: 'blur(16px)',
-    position: 'sticky', top: 0, zIndex: 200,
-    fontFamily: "'DM Sans', sans-serif",
-  },
-  brand: {
-    display: 'flex', alignItems: 'center', gap: 10,
-    cursor: 'pointer', marginRight: 16, flexShrink: 0,
-  },
-  logoRing: {
-    width: 34, height: 34, borderRadius: 9,
-    background: 'rgba(56,189,248,0.1)',
-    border: '1px solid rgba(56,189,248,0.25)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-  },
-  logoDiamond: {
-    width: 14, height: 14, borderRadius: 3,
-    background: 'linear-gradient(135deg,#38bdf8,#0ea5e9)',
-    transform: 'rotate(45deg)',
-  },
-  brandName: { fontSize: 14, fontWeight: 800, color: '#f0f6ff', letterSpacing: '-0.02em', lineHeight: 1.1 },
-  brandSub:  { fontSize: 10, color: '#3d5a70', letterSpacing: '0.1em', fontFamily: "'Geist Mono',monospace" },
-  links: { display: 'flex', alignItems: 'center', gap: 2, flex: 1 },
-  link: {
-    display: 'flex', alignItems: 'center', gap: 6, position: 'relative',
-    background: 'none', border: 'none', color: '#7a9ab5',
-    fontSize: 13, fontWeight: 600, cursor: 'pointer',
-    padding: '6px 12px', borderRadius: 8,
-    fontFamily: 'inherit', transition: 'color 0.2s',
-    letterSpacing: '-0.01em',
-  },
-  linkActive: { color: '#f0f6ff' },
-  linkIcon:   { fontSize: 13, opacity: 0.8 },
-  activePip: {
-    position: 'absolute', bottom: -2, left: '50%',
-    transform: 'translateX(-50%)',
-    width: 4, height: 4, borderRadius: '50%', background: '#38bdf8',
-  },
-  adminLink: {
-    color: '#fb7185',
-    background: 'rgba(251,113,133,0.06)',
-    border: '1px solid rgba(251,113,133,0.15)',
-    marginLeft: 8,
-  },
-  right: { display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' },
-  userChip: {
-    display: 'flex', alignItems: 'center', gap: 9,
-    padding: '5px 12px 5px 6px',
-    background: 'rgba(56,189,248,0.05)',
-    border: '1px solid rgba(56,189,248,0.12)',
-    borderRadius: 10, cursor: 'pointer',
-  },
-  avatar:        { width: 26, height: 26, borderRadius: '50%', border: '1px solid rgba(56,189,248,0.3)', display: 'block' },
-  avatarFallback:{ width: 26, height: 26, borderRadius: '50%', background: 'linear-gradient(135deg,#38bdf8,#0ea5e9)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#050b18' },
-  userInfo: { lineHeight: 1.2 },
-  userName: { fontSize: 12, fontWeight: 700, color: '#d0e8ff' },
-  userRole: { fontSize: 10, color: '#3d5a70', fontFamily: "'Geist Mono',monospace", letterSpacing: '0.06em' },
-  logoutBtn: {
-    background: 'transparent', border: '1px solid rgba(56,189,248,0.12)',
-    borderRadius: 8, color: '#3d5a70', width: 32, height: 32,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    cursor: 'pointer', fontSize: 14, transition: 'all 0.2s', fontFamily: 'inherit',
-  },
-};

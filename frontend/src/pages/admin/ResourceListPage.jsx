@@ -58,6 +58,16 @@ export default function ResourceListPage() {
     }
   };
 
+  const formatDate = (dateString) => {
+    if (!dateString) return '—';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  };
+
   const filtered = resources.filter(r =>
     r.name?.toLowerCase().includes(search.toLowerCase()) ||
     r.type?.toLowerCase().includes(search.toLowerCase()) ||
@@ -173,6 +183,7 @@ export default function ResourceListPage() {
                 <th style={s.th}>LOCATION</th>
                 <th style={s.th}>CAPACITY</th>
                 <th style={s.th}>STATUS</th>
+                <th style={s.th}>AVAILABLE DATE</th>
                 <th style={s.th}>AVAILABLE HOURS</th>
                 <th style={s.th}>MAX HOURS</th>
                 <th style={s.th}>ACTIONS</th>
@@ -181,7 +192,7 @@ export default function ResourceListPage() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan="9" style={s.emptyCell}>
+                  <td colSpan="10" style={s.emptyCell}>
                     {search ? "No matching resources found" : "No resources found. Click 'Add Resource' to create one."}
                   </td>
                 </tr>
@@ -207,6 +218,9 @@ export default function ResourceListPage() {
                       }}>
                         {resource.status || 'ACTIVE'}
                       </span>
+                    </td>
+                    <td style={{ ...s.td, color: '#7a9ab5', fontSize: 13 }}>
+                    {formatDate(resource.availableDate)}
                     </td>
                     <td style={{ ...s.td, color: '#7a9ab5', fontSize: 13 }}>
                       {resource.availableFrom || '—'} - {resource.availableTo || '—'}
@@ -459,7 +473,7 @@ const s = {
   table: {
     width: '100%',
     borderCollapse: 'collapse',
-    minWidth: 1100,
+    minWidth: 1200,
   },
   th: {
     textAlign: 'left',

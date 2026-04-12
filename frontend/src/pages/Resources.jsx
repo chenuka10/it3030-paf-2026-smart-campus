@@ -1,4 +1,4 @@
-// Resources.jsx - Fixed with correct availability metrics
+// Resources.jsx - Fixed with proper available slots calculation
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -11,7 +11,7 @@ const STATUS_STYLES = {
 };
 
 // ============================================================
-// FAVORITE BUTTON - Working with localStorage fallback
+// FAVORITE BUTTON
 // ============================================================
 const FavoriteButton = ({ resourceId, isFavorite, onToggle, size = 'normal' }) => {
   const [loading, setLoading] = useState(false);
@@ -23,17 +23,14 @@ const FavoriteButton = ({ resourceId, isFavorite, onToggle, size = 'normal' }) =
     try {
       if (favorite) {
         await api.delete(`/api/users/favorites/${resourceId}`);
-        console.log('Removed from favorites:', resourceId);
         setFavorite(false);
       } else {
         await api.post(`/api/users/favorites/${resourceId}`);
-        console.log('Added to favorites:', resourceId);
         setFavorite(true);
       }
       if (onToggle) await onToggle();
     } catch (err) {
       console.error('API Error toggling favorite:', err);
-      
       const localFavorites = JSON.parse(localStorage.getItem('favorites') || '[]');
       if (favorite) {
         const newFavorites = localFavorites.filter(id => id !== resourceId);
@@ -69,11 +66,55 @@ const FavoriteButton = ({ resourceId, isFavorite, onToggle, size = 'normal' }) =
 };
 
 // ============================================================
+// HELPER FUNCTION: Calculate available slots for a resource
+// ============================================================
+const calculateAvailableSlots = (resource, bookings = []) => {
+  if (resource.status !== 'ACTIVE') return 0;
+  
+  // Get operating hours
+  const openHour = parseInt(resource.availableFrom?.split(':')[0] || 8);
+  const closeHour = parseInt(resource.availableTo?.split(':')[0] || 18);
+  const maxHours = resource.maxBookingHours || 2;
+  
+  // Calculate total available hours in the day
+  const totalAvailableHours = closeHour - openHour;
+  
+  // Calculate total booked hours for today
+  const today = new Date().toISOString().split('T')[0];
+  const todayBookings = bookings.filter(booking => {
+    const bookingDate = new Date(booking.startTime).toISOString().split('T')[0];
+    return bookingDate === today;
+  });
+  
+  let bookedHours = 0;
+  todayBookings.forEach(booking => {
+    const start = parseInt(booking.startTime?.split('T')[1]?.split(':')[0] || 0);
+    const end = parseInt(booking.endTime?.split('T')[1]?.split(':')[0] || 0);
+    bookedHours += (end - start);
+  });
+  
+  // Calculate available hours
+  const availableHours = Math.max(0, totalAvailableHours - bookedHours);
+  
+  // Calculate number of available slots (each slot is maxHours long)
+  const availableSlots = Math.floor(availableHours / maxHours);
+  
+  return availableSlots;
+};
+
+// ============================================================
 // CALENDAR HEATMAP
 // ============================================================
 const ResourceHeatmap = ({ resourceId }) => {
   const [heatmapData, setHeatmapData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [bookingCategories, setBookingCategories] = useState({
+    low: { max: 2, color: '#166534', label: 'Low (0-2 bookings)' },
+    medium: { max: 5, color: '#15803d', label: 'Medium (3-5 bookings)' },
+    high: { max: 10, color: '#16a34a', label: 'High (6-10 bookings)' },
+    veryHigh: { max: Infinity, color: '#22c55e', label: 'Very High (10+ bookings)' }
+  });
 
   useEffect(() => {
     fetchHeatmap();
@@ -81,69 +122,143 @@ const ResourceHeatmap = ({ resourceId }) => {
 
   const fetchHeatmap = async () => {
     try {
+      setLoading(true);
+      setError(null);
       const { data } = await api.get(`/api/resources/${resourceId}/usage-heatmap?months=3`);
-      setHeatmapData(data);
-    } catch (err) {
-      console.error('Error fetching heatmap:', err);
-      const mockData = [];
-      for (let i = 0; i < 90; i++) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        mockData.push({
-          date: date.toISOString().split('T')[0],
-          count: Math.floor(Math.random() * 15)
+      
+      const processedData = (data || []).sort((a, b) => new Date(a.date) - new Date(b.date));
+      setHeatmapData(processedData);
+      
+      if (processedData.length > 0) {
+        const bookingCounts = processedData.map(d => d.count);
+        const maxBookings = Math.max(...bookingCounts);
+        const avgBookings = bookingCounts.reduce((a, b) => a + b, 0) / bookingCounts.length;
+        
+        setBookingCategories({
+          low: { max: Math.max(2, Math.floor(avgBookings * 0.5)), color: '#166534', label: 'Low Activity' },
+          medium: { max: Math.max(5, Math.floor(avgBookings * 1.2)), color: '#15803d', label: 'Medium Activity' },
+          high: { max: Math.max(10, Math.floor(maxBookings * 0.7)), color: '#16a34a', label: 'High Activity' },
+          veryHigh: { max: Infinity, color: '#22c55e', label: 'Very High Activity' }
         });
       }
-      setHeatmapData(mockData);
+    } catch (err) {
+      console.error('Error fetching heatmap:', err);
+      setError('Failed to load booking activity data');
+      setHeatmapData([]);
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) return <div className="text-center py-4 text-gray-400">Loading heatmap...</div>;
-
   const getHeatColor = (count) => {
     if (count === 0) return '#1e293b';
-    if (count <= 2) return '#166534';
-    if (count <= 5) return '#15803d';
-    if (count <= 10) return '#16a34a';
-    return '#22c55e';
+    if (count <= bookingCategories.low.max) return bookingCategories.low.color;
+    if (count <= bookingCategories.medium.max) return bookingCategories.medium.color;
+    if (count <= bookingCategories.high.max) return bookingCategories.high.color;
+    return bookingCategories.veryHigh.color;
   };
+
+  const getBookingStats = () => {
+    if (heatmapData.length === 0) return null;
+    
+    const counts = heatmapData.map(d => d.count);
+    const totalBookings = counts.reduce((a, b) => a + b, 0);
+    const avgBookings = (totalBookings / heatmapData.length).toFixed(1);
+    const maxBookings = Math.max(...counts);
+    const mostActiveDay = heatmapData.find(d => d.count === maxBookings);
+    
+    return {
+      total: totalBookings,
+      average: avgBookings,
+      max: maxBookings,
+      mostActiveDate: mostActiveDay?.date,
+      totalDays: heatmapData.length
+    };
+  };
+
+  if (loading) return <div className="text-center py-4 text-gray-400">Loading heatmap...</div>;
+  if (error) return <div className="text-center py-4 text-red-400">{error}</div>;
+  if (heatmapData.length === 0) return <div className="text-center py-4 text-gray-400">No booking data available</div>;
+
+  const stats = getBookingStats();
 
   return (
     <div className="bg-[#0f1a2e] rounded-lg p-4">
       <h3 className="text-lg font-semibold text-white mb-3">📊 Booking Activity (Last 90 Days)</h3>
+      
+      {stats && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+          <div className="bg-[#1a2538] rounded-lg p-2 text-center">
+            <div className="text-2xl font-bold text-[#38bdf8]">{stats.total}</div>
+            <div className="text-xs text-gray-400">Total Bookings</div>
+          </div>
+          <div className="bg-[#1a2538] rounded-lg p-2 text-center">
+            <div className="text-2xl font-bold text-[#4ade80]">{stats.average}</div>
+            <div className="text-xs text-gray-400">Avg per Day</div>
+          </div>
+          <div className="bg-[#1a2538] rounded-lg p-2 text-center">
+            <div className="text-2xl font-bold text-[#fbbf24]">{stats.max}</div>
+            <div className="text-xs text-gray-400">Peak Bookings</div>
+          </div>
+          <div className="bg-[#1a2538] rounded-lg p-2 text-center">
+            <div className="text-sm font-semibold text-gray-300 truncate">
+              {stats.mostActiveDate ? new Date(stats.mostActiveDate).toLocaleDateString() : 'N/A'}
+            </div>
+            <div className="text-xs text-gray-400">Most Active Day</div>
+          </div>
+        </div>
+      )}
+      
       <div className="grid grid-cols-15 gap-1">
         {heatmapData.slice(0, 90).map((day, idx) => (
           <div
             key={idx}
-            className="aspect-square rounded-sm cursor-pointer transition-transform hover:scale-110"
+            className="aspect-square rounded-sm cursor-pointer transition-transform hover:scale-110 group relative"
             style={{ backgroundColor: getHeatColor(day.count) }}
-            title={`${day.date}: ${day.count} bookings`}
-          />
+          >
+            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 rounded text-xs whitespace-nowrap hidden group-hover:block z-10">
+              {new Date(day.date).toLocaleDateString()}: {day.count} bookings
+            </div>
+          </div>
         ))}
       </div>
-      <div className="flex justify-end gap-2 mt-2 text-xs text-gray-500">
-        <span>Less</span>
-        <div className="w-3 h-3 bg-[#1e293b] rounded" />
-        <div className="w-3 h-3 bg-[#166534] rounded" />
-        <div className="w-3 h-3 bg-[#15803d] rounded" />
-        <div className="w-3 h-3 bg-[#16a34a] rounded" />
-        <div className="w-3 h-3 bg-[#22c55e] rounded" />
-        <span>More</span>
+      
+      <div className="flex flex-wrap justify-between gap-2 mt-3 text-xs">
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-3 rounded" style={{ backgroundColor: '#1e293b' }} />
+          <span className="text-gray-500">No bookings</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-3 rounded" style={{ backgroundColor: bookingCategories.low.color }} />
+          <span className="text-gray-400">{bookingCategories.low.label}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-3 rounded" style={{ backgroundColor: bookingCategories.medium.color }} />
+          <span className="text-gray-400">{bookingCategories.medium.label}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-3 rounded" style={{ backgroundColor: bookingCategories.high.color }} />
+          <span className="text-gray-400">{bookingCategories.high.label}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-3 rounded" style={{ backgroundColor: bookingCategories.veryHigh.color }} />
+          <span className="text-gray-400">{bookingCategories.veryHigh.label}</span>
+        </div>
       </div>
     </div>
   );
 };
 
 // ============================================================
-// SMART AVAILABILITY SUGGESTIONS - FIXED with real-time availability
+// SMART AVAILABILITY SUGGESTIONS
 // ============================================================
 const SmartAvailability = ({ resourceId, resourceType, capacity, location }) => {
   const [availability, setAvailability] = useState(null);
   const [alternatives, setAlternatives] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [error, setError] = useState(null);
+  const [weeklyStats, setWeeklyStats] = useState(null);
 
   useEffect(() => {
     fetchAvailability();
@@ -151,26 +266,65 @@ const SmartAvailability = ({ resourceId, resourceType, capacity, location }) => 
 
   const fetchAvailability = async () => {
     setLoading(true);
+    setError(null);
     try {
       const startDate = selectedDate.toISOString().split('T')[0];
       
       try {
-        const availRes = await api.get(`/api/resources/${resourceId}/availability?startDate=${startDate}&days=7`);
+        const availRes = await api.get(`/api/resources/${resourceId}/availability`, {
+          params: { startDate, days: 7 }
+        });
         setAvailability(availRes.data);
+        
+        if (availRes.data?.weeklyAvailability) {
+          const stats = {
+            bestDay: null,
+            mostSlots: 0,
+            averageSlotsPerDay: 0,
+            totalSlots: 0
+          };
+          
+          let totalSlots = 0;
+          let dayCount = 0;
+          
+          Object.entries(availRes.data.weeklyAvailability || {}).forEach(([day, slots]) => {
+            const slotCount = slots.length;
+            totalSlots += slotCount;
+            dayCount++;
+            if (slotCount > stats.mostSlots) {
+              stats.mostSlots = slotCount;
+              stats.bestDay = day;
+            }
+          });
+          
+          stats.averageSlotsPerDay = (totalSlots / dayCount).toFixed(1);
+          stats.totalSlots = totalSlots;
+          setWeeklyStats(stats);
+        }
       } catch (err) {
         console.error('Error fetching availability:', err);
-        setAvailability({
-          availableSlots: ['09:00-11:00', '14:00-16:00', '16:00-18:00']
-        });
+        setAvailability(null);
       }
       
       try {
-        const altRes = await api.get(`/api/resources/alternatives?type=${resourceType}&minCapacity=${capacity || 0}&location=${location || ''}&startDate=${startDate}&days=7`);
-        setAlternatives(altRes.data);
+        const altRes = await api.get(`/api/resources/alternatives`, {
+          params: {
+            type: resourceType,
+            minCapacity: capacity || 0,
+            location: location || '',
+            startDate,
+            days: 7,
+            excludeId: resourceId
+          }
+        });
+        setAlternatives(altRes.data || []);
       } catch (err) {
         console.error('Error fetching alternatives:', err);
         setAlternatives([]);
       }
+    } catch (err) {
+      console.error('Error in fetchAvailability:', err);
+      setError('Failed to load availability data');
     } finally {
       setLoading(false);
     }
@@ -186,33 +340,91 @@ const SmartAvailability = ({ resourceId, resourceType, capacity, location }) => 
     return days;
   };
 
-  if (loading) return <div className="text-center py-4 text-gray-400">Loading availability...</div>;
+  const getAvailabilityStatus = (date) => {
+    if (!availability?.weeklyAvailability) return 'unknown';
+    const dayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    const slots = availability.weeklyAvailability[dayName];
+    if (!slots || slots.length === 0) return 'full';
+    if (slots.length <= 2) return 'limited';
+    return 'available';
+  };
+
+  if (loading) return <div className="text-center py-4 text-gray-400">Loading availability data...</div>;
+  if (error) return <div className="text-center py-4 text-red-400">{error}</div>;
+  if (!availability) return <div className="text-center py-4 text-gray-400">No availability data found</div>;
 
   return (
     <div className="bg-[#0f1a2e] rounded-lg p-4">
       <h3 className="text-lg font-semibold text-white mb-3">💡 Smart Availability Suggestions</h3>
       
+      {weeklyStats && weeklyStats.totalSlots > 0 && (
+        <div className="mb-4 p-3 bg-gradient-to-r from-[#38bdf8]/10 to-[#3b82f6]/10 rounded-lg">
+          <div className="text-sm text-gray-300 mb-2">📈 Weekly Overview</div>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div>
+              <div className="text-lg font-bold text-[#38bdf8]">{weeklyStats.totalSlots}</div>
+              <div className="text-xs text-gray-400">Total Slots</div>
+            </div>
+            <div>
+              <div className="text-lg font-bold text-[#4ade80]">{weeklyStats.averageSlotsPerDay}</div>
+              <div className="text-xs text-gray-400">Avg Slots/Day</div>
+            </div>
+            <div>
+              <div className="text-lg font-bold text-[#fbbf24] capitalize">{weeklyStats.bestDay?.slice(0, 3)}</div>
+              <div className="text-xs text-gray-400">Best Day</div>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
-        {getWeekDays().map((day, idx) => (
-          <button
-            key={idx}
-            onClick={() => setSelectedDate(day)}
-            className={`px-3 py-2 rounded-lg text-sm whitespace-nowrap transition-all ${
-              day.toDateString() === selectedDate.toDateString()
-                ? 'bg-[#38bdf8] text-black'
-                : 'bg-[#1a2538] text-gray-300 hover:bg-[#253448]'
-            }`}
-          >
-            <div className="font-medium">{day.toLocaleDateString('en-US', { weekday: 'short' })}</div>
-            <div className="text-xs">{day.getDate()}</div>
-          </button>
-        ))}
+        {getWeekDays().map((day, idx) => {
+          const status = getAvailabilityStatus(day);
+          const isSelected = day.toDateString() === selectedDate.toDateString();
+          
+          let statusColor = '';
+          let statusText = '';
+          if (status === 'full') {
+            statusColor = 'bg-red-500/20';
+            statusText = 'text-red-400';
+          } else if (status === 'limited') {
+            statusColor = 'bg-yellow-500/20';
+            statusText = 'text-yellow-400';
+          } else if (status === 'available') {
+            statusColor = 'bg-green-500/20';
+            statusText = 'text-green-400';
+          }
+          
+          return (
+            <button
+              key={idx}
+              onClick={() => setSelectedDate(day)}
+              className={`px-3 py-2 rounded-lg text-sm whitespace-nowrap transition-all ${
+                isSelected
+                  ? 'bg-[#38bdf8] text-black'
+                  : `${statusColor} ${statusText} hover:bg-[#253448]`
+              }`}
+            >
+              <div className="font-medium">{day.toLocaleDateString('en-US', { weekday: 'short' })}</div>
+              <div className="text-xs">{day.getDate()}</div>
+              {!isSelected && status !== 'unknown' && (
+                <div className="text-xs mt-1">
+                  {status === 'full' && '🔴'}
+                  {status === 'limited' && '🟡'}
+                  {status === 'available' && '🟢'}
+                </div>
+              )}
+            </button>
+          );
+        })}
       </div>
       
       <div className="mb-4">
         <div className="flex items-center gap-2 mb-2">
           <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-          <span className="text-white font-medium">Available Time Slots</span>
+          <span className="text-white font-medium">
+            Available Time Slots for {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+          </span>
         </div>
         <div className="flex flex-wrap gap-2">
           {availability?.availableSlots?.length > 0 ? (
@@ -222,7 +434,14 @@ const SmartAvailability = ({ resourceId, resourceType, capacity, location }) => 
               </span>
             ))
           ) : (
-            <span className="text-yellow-400 text-sm">⚠️ No available slots for this day</span>
+            <div className="text-yellow-400 text-sm">
+              ⚠️ No available slots for this day
+              {weeklyStats?.bestDay && (
+                <span className="block text-xs text-gray-400 mt-1">
+                  Try {weeklyStats.bestDay} for more availability
+                </span>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -231,17 +450,22 @@ const SmartAvailability = ({ resourceId, resourceType, capacity, location }) => 
         <div>
           <div className="flex items-center gap-2 mb-2">
             <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-            <span className="text-white font-medium">Alternative Suggestions</span>
+            <span className="text-white font-medium">Alternative Suggestions ({alternatives.length} available)</span>
           </div>
           <div className="space-y-2">
             {alternatives.slice(0, 3).map((alt, idx) => (
-              <div key={idx} className="bg-[#1a2538] rounded-lg p-3">
+              <div key={idx} className="bg-[#1a2538] rounded-lg p-3 hover:bg-[#253448] transition-all">
                 <div className="flex justify-between items-start">
                   <div>
                     <div className="font-medium text-white">{alt.name}</div>
                     <div className="text-xs text-gray-400">📍 {alt.location} | 👥 Capacity: {alt.capacity}</div>
                   </div>
-                  <span className="text-xs text-green-400">{alt.availableSlots?.length || 0} slots</span>
+                  <div className="text-right">
+                    <span className="text-xs text-green-400">{alt.availableSlots?.length || 0} slots</span>
+                    {alt.distance && (
+                      <div className="text-xs text-gray-500">{alt.distance}</div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-1 mt-2">
                   {alt.availableSlots?.slice(0, 3).map((slot, sIdx) => (
@@ -286,27 +510,37 @@ export default function Resources() {
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [favorites, setFavorites] = useState([]);
   const [viewMode, setViewMode] = useState("grid");
-  const [currentBookings, setCurrentBookings] = useState({}); // Track current bookings per resource
+  const [allBookings, setAllBookings] = useState([]);
 
   useEffect(() => {
     if (!user) {
       navigate("/login");
       return;
     }
-    fetchResources();
-    fetchFavorites();
-    fetchCurrentBookings();
+    fetchAllData();
   }, [user, navigate]);
 
-  const fetchResources = async () => {
+  const fetchAllData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await api.get("/api/resources");
-      setResources(data);
+      // Fetch resources
+      const resourcesRes = await api.get("/api/resources");
+      const resourcesData = resourcesRes.data;
+      setResources(resourcesData);
       
+      // Fetch all bookings for today
+      const today = new Date().toISOString().split('T')[0];
+      const bookingsRes = await api.get("/api/bookings", {
+        params: { startDate: today, endDate: today }
+      });
+      const bookingsData = bookingsRes.data || [];
+      setAllBookings(bookingsData);
+      
+      // Group resources by type and calculate stats
       const typeMap = new Map();
-      data.forEach(resource => {
+      
+      resourcesData.forEach(resource => {
         if (!typeMap.has(resource.type)) {
           typeMap.set(resource.type, {
             id: resource.type,
@@ -321,22 +555,31 @@ export default function Resources() {
         }
       });
       
-      // Update stats with actual availability data
+      // Calculate stats for each category
       for (const [type, cat] of typeMap) {
-        const catResources = data.filter(r => r.type === type);
+        const catResources = resourcesData.filter(r => r.type === type);
         cat.stats.total = catResources.length;
         
-        // Calculate total available slots and in-use count for this category
         let totalAvailableSlots = 0;
         let totalInUse = 0;
         
         for (const resource of catResources) {
-          // Get available slots for today
-          const availableSlots = await fetchResourceAvailability(resource.id);
-          totalAvailableSlots += availableSlots.length;
+          // Calculate available slots based on resource hours and max booking hours
+          const availableSlots = calculateAvailableSlots(resource, bookingsData);
+          totalAvailableSlots += availableSlots;
           
-          // Check if resource is currently booked
-          if (currentBookings[resource.id] && currentBookings[resource.id].length > 0) {
+          // Check if resource is currently in use (has active booking at current time)
+          const now = new Date();
+          const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+          
+          const isCurrentlyBooked = bookingsData.some(booking => {
+            if (booking.resourceId !== resource.id) return false;
+            const startTime = booking.startTime?.split('T')[1]?.slice(0, 5);
+            const endTime = booking.endTime?.split('T')[1]?.slice(0, 5);
+            return currentTime >= startTime && currentTime < endTime;
+          });
+          
+          if (isCurrentlyBooked) {
             totalInUse++;
           }
         }
@@ -347,39 +590,39 @@ export default function Resources() {
       
       setCategories(Array.from(typeMap.values()));
     } catch (err) {
+      console.error('Error fetching data:', err);
       setError('Failed to load resources. Please try again later.');
-      console.error(err);
+      
+      // Fallback: Show categories with mock data for demonstration
+      if (resources.length > 0) {
+        const typeMap = new Map();
+        resources.forEach(resource => {
+          if (!typeMap.has(resource.type)) {
+            typeMap.set(resource.type, {
+              id: resource.type,
+              title: resource.type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase()),
+              description: `${resource.type.replace(/_/g, ' ')} facilities available on campus`,
+              icon: getIconForType(resource.type),
+              color: getColorForType(resource.type),
+              borderColor: getBorderColorForType(resource.type),
+              image: getImageForType(resource.type),
+              stats: { total: 0, availableSlots: 0, inUse: 0 }
+            });
+          }
+        });
+        
+        for (const [type, cat] of typeMap) {
+          const catResources = resources.filter(r => r.type === type);
+          cat.stats.total = catResources.length;
+          // Mock available slots for demonstration
+          cat.stats.availableSlots = catResources.length * 3;
+          cat.stats.inUse = Math.floor(catResources.length / 2);
+        }
+        
+        setCategories(Array.from(typeMap.values()));
+      }
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchResourceAvailability = async (resourceId) => {
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      const { data } = await api.get(`/api/resources/${resourceId}/availability?startDate=${today}&days=1`);
-      return data.availableSlots || [];
-    } catch (err) {
-      console.error('Error fetching availability:', err);
-      return [];
-    }
-  };
-
-  const fetchCurrentBookings = async () => {
-    try {
-      const { data } = await api.get('/api/bookings/current');
-      const bookingsMap = {};
-      data.forEach(booking => {
-        if (!bookingsMap[booking.resourceId]) {
-          bookingsMap[booking.resourceId] = [];
-        }
-        bookingsMap[booking.resourceId].push(booking);
-      });
-      setCurrentBookings(bookingsMap);
-    } catch (err) {
-      console.error('Error fetching current bookings:', err);
-      // Mock data for demo
-      setCurrentBookings({});
     }
   };
 
@@ -391,12 +634,10 @@ export default function Resources() {
         : [];
       setFavorites(favoriteIds);
       localStorage.setItem('favorites', JSON.stringify(favoriteIds));
-      console.log('Favorites loaded from API:', favoriteIds);
     } catch (err) {
       console.error('API fetch favorites failed:', err);
       const localFavorites = JSON.parse(localStorage.getItem('favorites') || '[]');
       setFavorites(localFavorites);
-      console.log('Favorites loaded from localStorage:', localFavorites);
     }
   };
 
@@ -441,14 +682,14 @@ export default function Resources() {
 
   const getImageForType = (type) => {
     const imageMap = {
-      'LECTURE_HALL': 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=500&h=300&fit=crop',
-      'LECTURE_ROOM': 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=500&h=300&fit=crop',
-      'LAB': 'https://images.unsplash.com/photo-1581091226033-d5c48150dbaa?w=500&h=300&fit=crop',
-      'MEETING_ROOM': 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=500&h=300&fit=crop',
-      'EQUIPMENT': 'https://images.unsplash.com/photo-1581092335871-4b7a7f5d7c6f?w=500&h=300&fit=crop',
-      'OUTDOOR': 'https://images.unsplash.com/photo-1533134242443-d4fd215305ad?w=500&h=300&fit=crop',
+      'LECTURE_HALL': '/images/lecture-hall.jpg',
+      'LECTURE_ROOM': '/images/lecture-hall.jpg',
+      'LAB': '/images/lab.jpg',
+      'MEETING_ROOM': '/images/meeting-room.jpg',
+      'EQUIPMENT': '/images/lab.jpg',
+      'OUTDOOR': '/images/outdoor.jpg',
     };
-    return imageMap[type] || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=500&h=300&fit=crop';
+    return imageMap[type] || '/images/default.jpg';
   };
 
   const filteredResources = () => {
@@ -531,7 +772,15 @@ export default function Resources() {
 
   const ResourceDetailCard = ({ resource, onViewDetails }) => {
     const isFavorite = favorites.includes(resource.id);
-    const isInUse = currentBookings[resource.id] && currentBookings[resource.id].length > 0;
+    const availableSlots = calculateAvailableSlots(resource, allBookings);
+    const isInUse = allBookings.some(booking => {
+      if (booking.resourceId !== resource.id) return false;
+      const now = new Date();
+      const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      const startTime = booking.startTime?.split('T')[1]?.slice(0, 5);
+      const endTime = booking.endTime?.split('T')[1]?.slice(0, 5);
+      return currentTime >= startTime && currentTime < endTime;
+    });
     
     return (
       <div 
@@ -589,6 +838,10 @@ export default function Resources() {
             <div className="flex items-center gap-2 text-sm text-gray-400">
               <span>⏰</span>
               <span>{resource.availableFrom || '08:00'} - {resource.availableTo || '18:00'}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-green-400">
+              <span>📅</span>
+              <span>{availableSlots} slots available today</span>
             </div>
           </div>
           
@@ -664,8 +917,7 @@ export default function Resources() {
             <button 
               className="flex-1 py-3 rounded-lg font-semibold bg-gradient-to-r from-[#38bdf8] to-[#3b82f6] text-white"
               onClick={() => {
-                alert(`Booking for ${resource.name} - Coming soon!`);
-                onClose();
+                navigate(`/bookings/new?resource=${resource.id}`);
               }}
             >
               Book This Resource →
@@ -716,7 +968,7 @@ export default function Resources() {
             {error ? (
               <div className="text-center py-16">
                 <div className="text-red-400 mb-4">⚠️ {error}</div>
-                <button onClick={fetchResources} className="px-4 py-2 bg-[#38bdf8]/20 text-[#38bdf8] rounded-lg">Retry</button>
+                <button onClick={fetchAllData} className="px-4 py-2 bg-[#38bdf8]/20 text-[#38bdf8] rounded-lg">Retry</button>
               </div>
             ) : categories.length === 0 ? (
               <div className="text-center py-16">
@@ -906,7 +1158,14 @@ export default function Resources() {
           ) : (
             <div className="space-y-3">
               {categoryResources.map((resource) => {
-                const isInUse = currentBookings[resource.id] && currentBookings[resource.id].length > 0;
+                const isInUse = allBookings.some(booking => {
+                  if (booking.resourceId !== resource.id) return false;
+                  const now = new Date();
+                  const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+                  const startTime = booking.startTime?.split('T')[1]?.slice(0, 5);
+                  const endTime = booking.endTime?.split('T')[1]?.slice(0, 5);
+                  return currentTime >= startTime && currentTime < endTime;
+                });
                 return (
                   <div 
                     key={resource.id}

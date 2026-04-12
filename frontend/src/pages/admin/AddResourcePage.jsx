@@ -12,16 +12,17 @@ export default function AddResourcePage() {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
-    name: "",
-    type: "LECTURE_ROOM",
-    description: "",
-    location: "",
-    capacity: "",
-    status: "ACTIVE",
-    availableFrom: "08:00",
-    availableTo: "18:00",
-    maxBookingHours: "2"
-  });
+  name: "",
+  type: "LECTURE_ROOM",
+  description: "",
+  location: "",
+  capacity: "",
+  status: "ACTIVE",
+  availableFrom: "08:00",
+  availableTo: "18:00",
+  maxBookingHours: "2",
+  availableDate: "" // ✅ FIXED
+});
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -48,26 +49,28 @@ export default function AddResourcePage() {
     try {
       // Prepare payload matching backend expectations
       const payload = {
-        name: formData.name,
-        type: formData.type,
-        description: formData.description,
-        location: formData.location,
-        capacity: formData.capacity ? Number(formData.capacity) : null,
-        status: formData.status,
-        availableFrom: formData.availableFrom,
-        availableTo: formData.availableTo,
-        maxBookingHours: Number(formData.maxBookingHours)
-      };
+  name: formData.name,
+  type: formData.type,
+  description: formData.description,
+  location: formData.location,
+  capacity: formData.capacity ? Number(formData.capacity) : null,
+  status: formData.status,
+  availableFrom: formData.availableFrom,
+  availableTo: formData.availableTo,
+  maxBookingHours: Number(formData.maxBookingHours),
+  availableDate: formData.availableDate || null // ✅ FIXED
+};
 
       console.log("Sending payload:", payload);
-      await api.post("/api/resources", payload);
+      const response = await api.post("/api/resources", payload);
+      console.log("Response:", response.data);
       
       setSuccess(true);
       
       // Navigate to ResourceListPage after successful addition
       setTimeout(() => {
-        navigate("/resourceslist"); // Make sure this matches your route path
-      }, 1000); // Small delay to show success message
+        navigate("/resourceslist");
+      }, 1000);
       
     } catch (err) {
       console.error("Error adding resource:", err);
@@ -92,7 +95,7 @@ export default function AddResourcePage() {
           </div>
           <button 
             style={s.cancelBtn} 
-            onClick={() => navigate("/resourceslist")} // Navigate to ResourceListPage on cancel
+            onClick={() => navigate("/resourceslist")}
           >
             ← Back to Resources
           </button>
@@ -187,6 +190,17 @@ export default function AddResourcePage() {
                   <option key={status} value={status}>{status}</option>
                 ))}
               </select>
+            </div>
+
+            <div style={s.formGroup}>
+              <label style={s.label}>AVAILABLE DATE (YYYY-MM-DD)</label>
+              <input
+              type="date"
+              name="availableDate"
+              value={formData.availableDate}
+              onChange={handleChange}
+              style={s.input}
+              />
             </div>
 
             <div style={s.formGroup}>

@@ -19,10 +19,11 @@ export default function EditResourcePage() {
     description: "",
     location: "",
     capacity: "",
-    status: "ACTIVE", // ✅ Changed from "AVAILABLE" to "ACTIVE"
+    status: "ACTIVE",
     availableFrom: "",
     availableTo: "",
-    maxBookingHours: ""
+    maxBookingHours: "",
+    availableDate: "" // ✅ Added availableDate field
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -39,11 +40,14 @@ export default function EditResourcePage() {
   const fetchResource = async () => {
     try {
       const { data } = await api.get(`/api/resources/${id}`);
-      // Ensure status is mapped correctly if backend returns different format
+      // Format date for input field (YYYY-MM-DD)
+      const formattedDate = data.availableDate ? data.availableDate.split('T')[0] : "";
+      
       setFormData({
         ...data,
         capacity: data.capacity || "",
-        maxBookingHours: data.maxBookingHours || ""
+        maxBookingHours: data.maxBookingHours || "",
+        availableDate: formattedDate // ✅ Set available date
       });
     } catch (err) {
       console.error("Failed to fetch resource", err);
@@ -64,11 +68,12 @@ export default function EditResourcePage() {
       const payload = {
         ...formData,
         capacity: formData.capacity ? Number(formData.capacity) : null,
-        maxBookingHours: formData.maxBookingHours ? Number(formData.maxBookingHours) : null
+        maxBookingHours: formData.maxBookingHours ? Number(formData.maxBookingHours) : null,
+        availableDate: formData.availableDate || null // ✅ Include available date
       };
       
       await api.put(`/api/resources/${id}`, payload);
-      navigate("/resources"); // ✅ Changed to navigate to main Resources page
+      navigate("/resources");
     } catch (err) {
       console.error("Failed to update resource", err);
       setError(err.response?.data?.message || "Failed to update resource");
@@ -168,6 +173,18 @@ export default function EditResourcePage() {
                 style={s.input}
                 placeholder="e.g., 60"
               />
+            </div>
+
+            {/* ✅ New Available Date Field */}
+            <div style={s.formGroup}>
+              <label style={s.label}>Available Date</label>
+              <input
+                type="date"
+                value={formData.availableDate}
+                onChange={(e) => setFormData({ ...formData, availableDate: e.target.value })}
+                style={s.input}
+              />
+              <small style={s.helperText}>Set specific date when resource becomes available</small>
             </div>
 
             <div style={s.formGroup}>
@@ -392,6 +409,11 @@ const s = {
     outline: 'none',
     resize: 'vertical',
     boxSizing: 'border-box',
+  },
+  helperText: {
+    fontSize: 11,
+    color: '#5a7a95',
+    marginTop: 4,
   },
   formActions: {
     display: 'flex',

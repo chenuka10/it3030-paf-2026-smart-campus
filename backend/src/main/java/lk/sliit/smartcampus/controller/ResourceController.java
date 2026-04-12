@@ -59,6 +59,8 @@ public class ResourceController {
         resource.setAvailableFrom(updated.getAvailableFrom());
         resource.setAvailableTo(updated.getAvailableTo());
         resource.setMaxBookingHours(updated.getMaxBookingHours());
+        resource.setAvailableDate(updated.getAvailableDate()); // ADD THIS LINE
+        
 
         return resourceRepository.save(resource);
     }

@@ -28,7 +28,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/tickets")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*") // Update this to your React app URL in production
 public class TicketController {
     
     private final TicketService ticketService;
@@ -41,7 +40,7 @@ public class TicketController {
  * Accepts multipart form data with ticket details and up to 3 image attachments
  */
 @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-@PreAuthorize("hasAnyRole('USER', 'ADMIN', 'TECHNICIAN')")
+@PreAuthorize("hasRole('USER')")
 public ResponseEntity<TicketResponseDTO> createTicket(
         @RequestParam("resourceId") Long resourceId,
         @RequestParam("category") String category,

@@ -23,6 +23,7 @@ public class TicketServiceImpl implements TicketService {
     private final TicketRepository ticketRepository;
     private final TicketAttachmentRepository attachmentRepository;
     private final TicketCommentRepository commentRepository;
+    private final UserRepository userRepository;
     private final FileStorageService fileStorageService;
     
     @Override
@@ -101,10 +102,20 @@ public class TicketServiceImpl implements TicketService {
         
         // Validate status transition
         validateStatusTransition(ticket.getStatus(), statusUpdate.getStatus());
+        validateStatusUpdate(statusUpdate);
         
         ticket.setStatus(statusUpdate.getStatus());
         
         if (statusUpdate.getAssignedTechnicianId() != null) {
+            User technician = userRepository.findById(statusUpdate.getAssignedTechnicianId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                    "User not found with id: " + statusUpdate.getAssignedTechnicianId()
+                ));
+
+            if (technician.getRole() != Role.TECHNICIAN) {
+                throw new ValidationException("Assigned user must have TECHNICIAN role");
+            }
+
             ticket.setAssignedTechnicianId(statusUpdate.getAssignedTechnicianId());
         }
         
@@ -241,6 +252,23 @@ public class TicketServiceImpl implements TicketService {
             throw new ValidationException(
                 String.format("Invalid status transition from %s to %s", currentStatus, newStatus)
             );
+        }
+    }
+
+    private void validateStatusUpdate(StatusUpdateDTO statusUpdate) {
+        if (statusUpdate.getStatus() == TicketStatus.IN_PROGRESS &&
+            statusUpdate.getAssignedTechnicianId() == null) {
+            throw new ValidationException("A technician must be assigned when moving a ticket to IN_PROGRESS");
+        }
+
+        if (statusUpdate.getStatus() == TicketStatus.RESOLVED &&
+            (statusUpdate.getResolutionNotes() == null || statusUpdate.getResolutionNotes().isBlank())) {
+            throw new ValidationException("Resolution notes are required when resolving a ticket");
+        }
+
+        if (statusUpdate.getStatus() == TicketStatus.REJECTED &&
+            (statusUpdate.getRejectionReason() == null || statusUpdate.getRejectionReason().isBlank())) {
+            throw new ValidationException("Rejection reason is required when rejecting a ticket");
         }
     }
     

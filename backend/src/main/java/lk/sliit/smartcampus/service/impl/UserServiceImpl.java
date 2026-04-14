@@ -3,6 +3,7 @@ package lk.sliit.smartcampus.service.impl;
 import lk.sliit.smartcampus.dto.UpdateProfileRequest;
 import lk.sliit.smartcampus.dto.UpdateRoleRequest;
 import lk.sliit.smartcampus.dto.UserResponseDTO;
+import lk.sliit.smartcampus.entity.Role;
 import lk.sliit.smartcampus.entity.User;
 import lk.sliit.smartcampus.exception.ResourceNotFoundException;
 import lk.sliit.smartcampus.repository.UserRepository;
@@ -24,6 +25,13 @@ public class UserServiceImpl implements UserService {
     @Override
     public List<UserResponseDTO> getAllUsers() {
         return userRepository.findAll().stream()
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<UserResponseDTO> getUsersByRole(Role role) {
+        return userRepository.findByRole(role).stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
     }

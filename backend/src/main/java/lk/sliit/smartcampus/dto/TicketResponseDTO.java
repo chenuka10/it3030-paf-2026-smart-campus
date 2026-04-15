@@ -23,6 +23,7 @@ public class TicketResponseDTO {
     private String contactEmail;
     private String contactPhone;
     private Long assignedTechnicianId;
+    private String assignedTechnicianName;
     private String rejectionReason;
     private String resolutionNotes;
     private Long createdBy;

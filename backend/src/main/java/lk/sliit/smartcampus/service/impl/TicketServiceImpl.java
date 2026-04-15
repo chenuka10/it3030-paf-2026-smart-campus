@@ -274,6 +274,10 @@ public class TicketServiceImpl implements TicketService {
     
     // Convert Ticket entity to TicketResponseDTO
     private TicketResponseDTO convertToResponseDTO(Ticket ticket) {
+        User assignedTechnician = ticket.getAssignedTechnicianId() != null
+            ? userRepository.findById(ticket.getAssignedTechnicianId()).orElse(null)
+            : null;
+
         TicketResponseDTO dto = new TicketResponseDTO();
         dto.setId(ticket.getId());
         dto.setResourceId(ticket.getResourceId());
@@ -284,6 +288,7 @@ public class TicketServiceImpl implements TicketService {
         dto.setContactEmail(ticket.getContactEmail());
         dto.setContactPhone(ticket.getContactPhone());
         dto.setAssignedTechnicianId(ticket.getAssignedTechnicianId());
+        dto.setAssignedTechnicianName(assignedTechnician != null ? assignedTechnician.getName() : null);
         dto.setRejectionReason(ticket.getRejectionReason());
         dto.setResolutionNotes(ticket.getResolutionNotes());
         dto.setCreatedBy(ticket.getCreatedBy());
@@ -308,15 +313,15 @@ public class TicketServiceImpl implements TicketService {
     
     // Convert TicketComment entity to CommentDTO
     private CommentDTO convertToCommentDTO(TicketComment comment) {
+        User user = userRepository.findById(comment.getUserId()).orElse(null);
         CommentDTO dto = new CommentDTO();
         dto.setId(comment.getId());
         dto.setUserId(comment.getUserId());
+        dto.setUserName(user != null ? user.getName() : null);
         dto.setCommentText(comment.getCommentText());
         dto.setCreatedAt(comment.getCreatedAt());
         dto.setUpdatedAt(comment.getUpdatedAt());
-        
-        // Note: userName can be populated by frontend or via UserService if available
-        
+
         return dto;
     }
 }

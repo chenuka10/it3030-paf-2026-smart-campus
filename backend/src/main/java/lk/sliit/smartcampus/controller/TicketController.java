@@ -15,6 +15,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.core.io.Resource;
@@ -75,7 +76,12 @@ public ResponseEntity<TicketResponseDTO> createTicket(
     public ResponseEntity<List<TicketResponseDTO>> getAllTickets(
             @RequestParam(required = false) TicketStatus status,
             @RequestParam(required = false) TicketPriority priority,
-            @RequestParam(required = false) Long assignedTechnicianId) {
+            @RequestParam(required = false) Long assignedTechnicianId,
+            Authentication authentication) {
+
+        if (hasRole(authentication, "ROLE_TECHNICIAN")) {
+            assignedTechnicianId = getUserIdFromAuth(authentication);
+        }
         
         List<TicketResponseDTO> tickets = ticketService.getAllTickets(status, priority, assignedTechnicianId);
         return ResponseEntity.ok(tickets);
@@ -218,5 +224,11 @@ public ResponseEntity<Resource> getAttachment(@PathVariable String filename) {
         String email = authentication.getName(); // Get email from OAuth token
         UserResponseDTO user = userService.getUserByEmail(email);
         return user.getId();
+    }
+
+    private boolean hasRole(Authentication authentication, String role) {
+        return authentication.getAuthorities().stream()
+            .map(GrantedAuthority::getAuthority)
+            .anyMatch(role::equals);
     }
 }

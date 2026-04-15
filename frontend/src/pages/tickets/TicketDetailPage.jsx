@@ -7,11 +7,13 @@ import StatusUpdateModal from '../../components/tickets/StatusUpdateModal';
 import { useAuth } from '../../context/AuthContext';
 import Layout from '../../components/Layout';
 
+const formatTicketCode = (ticketId) => `ID-${String(ticketId).padStart(3, '0')}`;
+
 const TicketDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  
+
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -28,7 +30,7 @@ const TicketDetailPage = () => {
   const fetchTicket = async () => {
     setLoading(true);
     setError('');
-    
+
     try {
       const data = await getTicketById(id);
       setTicket(data);
@@ -71,12 +73,10 @@ const TicketDetailPage = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="max-w-5xl mx-auto p-6">
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p className="mt-4 text-gray-600">Loading ticket...</p>
-          </div>
-        </div>
+        <PageState
+          title="Loading ticket"
+          description="Fetching the latest maintenance details."
+        />
       </Layout>
     );
   }
@@ -84,12 +84,13 @@ const TicketDetailPage = () => {
   if (error) {
     return (
       <Layout>
-        <div className="max-w-5xl mx-auto p-6">
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-            <p>{error}</p>
-            <button 
+        <div className="mx-auto max-w-5xl px-6 py-10">
+          <div className="rounded-[24px] border border-ui-danger/18 bg-ui-danger/8 px-5 py-5 text-ui-danger">
+            <div className="text-lg font-bold">Unable to load ticket</div>
+            <p className="mt-2 text-sm">{error}</p>
+            <button
               onClick={() => navigate('/tickets')}
-              className="mt-3 text-sm underline hover:no-underline"
+              className="mt-4 rounded-xl border border-ui-danger/20 px-4 py-2 text-sm font-semibold transition hover:bg-ui-danger/10"
             >
               Back to Tickets
             </button>
@@ -102,163 +103,172 @@ const TicketDetailPage = () => {
   if (!ticket) {
     return (
       <Layout>
-        <div className="max-w-5xl mx-auto p-6">
-          <div className="text-center py-12">
-            <p className="text-gray-500">Ticket not found</p>
-            <button 
-              onClick={() => navigate('/tickets')}
-              className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              Back to Tickets
-            </button>
-          </div>
-        </div>
+        <PageState
+          title="Ticket not found"
+          description="The requested ticket is unavailable or may have been removed."
+          actionLabel="Back to Tickets"
+          onAction={() => navigate('/tickets')}
+        />
       </Layout>
     );
   }
 
   return (
     <Layout>
-      <div className="max-w-5xl mx-auto p-6">
+      <div className="mx-auto max-w-6xl px-6 py-8">
         <button
           onClick={() => navigate('/tickets')}
-          className="mb-4 text-blue-600 hover:text-blue-800 flex items-center"
+          className="mb-5 rounded-xl border border-ui-sky/12 bg-ui-base/70 px-4 py-2 text-sm font-semibold text-ui-muted transition hover:bg-ui-sky/6 hover:text-ui-bright"
         >
           Back to Tickets
         </button>
 
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-800 mb-2">
-                Ticket #{ticket.id}
-              </h1>
-              <p className="text-gray-600">
-                Resource ID: {ticket.resourceId}
-              </p>
-            </div>
-            <div className="flex flex-col gap-2">
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${STATUS_COLORS[ticket.status]}`}>
-                {ticket.status.replace('_', ' ')}
-              </span>
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${PRIORITY_COLORS[ticket.priority]}`}>
-                {ticket.priority}
-              </span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 pb-6 border-b">
-            <div>
-              <p className="text-sm text-gray-500">Category</p>
-              <p className="font-medium">{ticket.category}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Created</p>
-              <p className="font-medium">{formatDate(ticket.createdAt)}</p>
-            </div>
-            {ticket.assignedTechnicianId && (
+        <div className="space-y-6">
+          <section className="rounded-[28px] border border-ui-sky/12 bg-[linear-gradient(135deg,rgba(232,226,216,0.92),rgba(245,242,236,0.98))] px-6 py-6 shadow-[0_18px_40px_rgba(15,23,42,0.08)] md:px-8">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <p className="text-sm text-gray-500">Assigned Technician</p>
-                <p className="font-medium">User #{ticket.assignedTechnicianId}</p>
-              </div>
-            )}
-            <div>
-              <p className="text-sm text-gray-500">Last Updated</p>
-              <p className="font-medium">{formatDate(ticket.updatedAt)}</p>
-            </div>
-          </div>
-
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold mb-2">Description</h2>
-            <p className="text-gray-700 whitespace-pre-wrap">{ticket.description}</p>
-          </div>
-
-          <div className="mb-6 pb-6 border-b">
-            <h2 className="text-lg font-semibold mb-3">Contact Information</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <p className="text-sm text-gray-500">Email</p>
-                <p className="font-medium">{ticket.contactEmail}</p>
-              </div>
-              {ticket.contactPhone && (
-                <div>
-                  <p className="text-sm text-gray-500">Phone</p>
-                  <p className="font-medium">{ticket.contactPhone}</p>
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-ui-dim font-mono">
+                  Ticket Overview
                 </div>
+                <h1 className="mt-2 text-[34px] font-extrabold tracking-[-0.04em] text-ui-surface">
+                  Ticket {formatTicketCode(ticket.id)}
+                </h1>
+                <p className="mt-2 text-sm leading-6 text-ui-muted">
+                  Resource ID: <span className="font-semibold text-ui-bright">{ticket.resourceId}</span>
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${STATUS_COLORS[ticket.status]}`}>
+                    {ticket.status.replace('_', ' ')}
+                  </span>
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${PRIORITY_COLORS[ticket.priority]}`}>
+                    {ticket.priority}
+                  </span>
+                  <span className="rounded-full border border-ui-sky/10 bg-ui-sky/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-ui-muted">
+                    {ticket.category.replace('_', ' ')}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:w-[360px]">
+                <OverviewCard label="Created" value={formatDate(ticket.createdAt)} />
+                <OverviewCard label="Last Updated" value={formatDate(ticket.updatedAt)} />
+                <OverviewCard
+                  label="Assigned Technician"
+                  value={ticket.assignedTechnicianName || 'Unassigned'}
+                />
+                <OverviewCard label="Comments" value={`${ticket.commentCount || 0}`} />
+              </div>
+            </div>
+          </section>
+
+          <div className="grid gap-6 xl:grid-cols-[1.4fr_0.9fr]">
+            <div className="space-y-6">
+              <DetailSection
+                title="Issue Description"
+                description="Detailed report submitted for this maintenance request."
+              >
+                <p className="whitespace-pre-wrap text-sm leading-7 text-ui-muted">
+                  {ticket.description}
+                </p>
+              </DetailSection>
+
+              {ticket.attachments && ticket.attachments.length > 0 && (
+                <DetailSection
+                  title="Attachments"
+                  description={`${ticket.attachments.length} uploaded file${ticket.attachments.length > 1 ? 's' : ''} attached to this ticket.`}
+                >
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    {ticket.attachments.map((attachment) => (
+                      <a
+                        key={attachment.id}
+                        href={getAttachmentUrl(attachment.fileUrl)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="overflow-hidden rounded-[22px] border border-ui-sky/12 bg-ui-base transition hover:border-ui-sky/25 hover:shadow-[0_16px_34px_rgba(15,23,42,0.08)]"
+                      >
+                        <img
+                          src={getAttachmentUrl(attachment.fileUrl)}
+                          alt={attachment.fileName}
+                          className="h-44 w-full object-cover"
+                        />
+                        <div className="px-4 py-3">
+                          <div className="truncate text-sm font-semibold text-ui-bright">{attachment.fileName}</div>
+                          <div className="mt-1 text-xs text-ui-dim">Open attachment</div>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                </DetailSection>
+              )}
+
+              {ticket.resolutionNotes && (
+                <DetailSection
+                  title="Resolution Notes"
+                  description="Technician or admin notes recorded when the issue was resolved."
+                  tone="success"
+                >
+                  <p className="whitespace-pre-wrap text-sm leading-7 text-ui-muted">
+                    {ticket.resolutionNotes}
+                  </p>
+                </DetailSection>
+              )}
+
+              {ticket.rejectionReason && (
+                <DetailSection
+                  title="Rejection Reason"
+                  description="Reason provided when the ticket was rejected."
+                  tone="danger"
+                >
+                  <p className="whitespace-pre-wrap text-sm leading-7 text-ui-muted">
+                    {ticket.rejectionReason}
+                  </p>
+                </DetailSection>
               )}
             </div>
-          </div>
 
-          {ticket.attachments && ticket.attachments.length > 0 && (
-            <div className="mb-6 pb-6 border-b">
-              <h2 className="text-lg font-semibold mb-3">Attachments ({ticket.attachments.length})</h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {ticket.attachments.map((attachment) => (
-                  <div key={attachment.id} className="border rounded-lg overflow-hidden">
-                    <a 
-                      href={getAttachmentUrl(attachment.fileUrl)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block"
+            <div className="space-y-6">
+              <DetailSection
+                title="Contact Information"
+                description="Details provided by the requester."
+              >
+                <div className="space-y-4">
+                  <ContactRow label="Email" value={ticket.contactEmail} />
+                  <ContactRow label="Phone" value={ticket.contactPhone || 'Not provided'} />
+                </div>
+              </DetailSection>
+
+              <DetailSection
+                title="Actions"
+                description="Available actions depend on your current role."
+              >
+                <div className="flex flex-col gap-3">
+                  {canUpdateStatus && (
+                    <button
+                      onClick={() => setShowStatusModal(true)}
+                      className="rounded-xl bg-[linear-gradient(135deg,var(--color-ui-sky),var(--color-ui-green))] px-5 py-3 text-sm font-bold text-ui-base transition hover:opacity-95"
                     >
-                      <img
-                        src={getAttachmentUrl(attachment.fileUrl)}
-                        alt={attachment.fileName}
-                        className="w-full h-40 object-cover hover:opacity-75 transition"
-                      />
-                      <p className="p-2 text-xs text-gray-600 truncate">
-                        {attachment.fileName}
-                      </p>
-                    </a>
-                  </div>
-                ))}
-              </div>
+                      Update Status
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button
+                      onClick={handleDelete}
+                      disabled={deleting}
+                      className="rounded-xl border border-ui-danger/25 bg-ui-danger/8 px-5 py-3 text-sm font-bold text-ui-danger transition hover:bg-ui-danger/12 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {deleting ? 'Deleting...' : 'Delete Ticket'}
+                    </button>
+                  )}
+                </div>
+              </DetailSection>
             </div>
-          )}
-
-          {ticket.resolutionNotes && (
-            <div className="mb-6 pb-6 border-b">
-              <h2 className="text-lg font-semibold mb-2">Resolution Notes</h2>
-              <p className="text-gray-700 whitespace-pre-wrap bg-green-50 p-4 rounded border border-green-200">
-                {ticket.resolutionNotes}
-              </p>
-            </div>
-          )}
-
-          {ticket.rejectionReason && (
-            <div className="mb-6 pb-6 border-b">
-              <h2 className="text-lg font-semibold mb-2">Rejection Reason</h2>
-              <p className="text-gray-700 whitespace-pre-wrap bg-red-50 p-4 rounded border border-red-200">
-                {ticket.rejectionReason}
-              </p>
-            </div>
-          )}
-
-          <div className="flex gap-3">
-            {canUpdateStatus && (
-              <button
-                onClick={() => setShowStatusModal(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
-              >
-                Update Status
-              </button>
-            )}
-            {canDelete && (
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium disabled:bg-gray-400"
-              >
-                {deleting ? 'Deleting...' : 'Delete Ticket'}
-              </button>
-            )}
           </div>
-        </div>
 
-        <CommentSection
-          ticketId={ticket.id}
-          currentUserId={currentUserId}
-        />
+          <CommentSection
+            ticketId={ticket.id}
+            currentUserId={currentUserId}
+          />
+        </div>
 
         {showStatusModal && (
           <StatusUpdateModal
@@ -274,5 +284,64 @@ const TicketDetailPage = () => {
     </Layout>
   );
 };
+
+function PageState({ title, description, actionLabel, onAction }) {
+  return (
+    <div className="mx-auto max-w-5xl px-6 py-14">
+      <div className="rounded-[24px] border border-ui-sky/12 bg-ui-base/80 px-6 py-14 text-center shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
+        <div className="text-[28px] font-bold text-ui-surface">{title}</div>
+        <p className="mt-3 text-sm text-ui-muted">{description}</p>
+        {actionLabel && onAction && (
+          <button
+            onClick={onAction}
+            className="mt-5 rounded-xl border border-ui-sky/14 px-4 py-2 text-sm font-semibold text-ui-muted transition hover:bg-ui-sky/6 hover:text-ui-bright"
+          >
+            {actionLabel}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function OverviewCard({ label, value }) {
+  return (
+    <div className="rounded-2xl border border-ui-sky/10 bg-ui-base/70 px-4 py-4">
+      <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-ui-dim font-mono">
+        {label}
+      </div>
+      <div className="mt-2 text-sm font-semibold text-ui-bright">{value}</div>
+    </div>
+  );
+}
+
+function DetailSection({ title, description, children, tone = 'default' }) {
+  const tones = {
+    default: 'border-ui-sky/12 bg-ui-base/82',
+    success: 'border-ui-green/18 bg-ui-green/6',
+    danger: 'border-ui-danger/16 bg-ui-danger/6'
+  };
+
+  return (
+    <section className={`rounded-[24px] border p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ${tones[tone] || tones.default}`}>
+      <div className="mb-4">
+        <h2 className="text-[20px] font-bold tracking-[-0.02em] text-ui-surface">{title}</h2>
+        <p className="mt-1 text-sm text-ui-muted">{description}</p>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function ContactRow({ label, value }) {
+  return (
+    <div className="rounded-2xl border border-ui-sky/10 bg-ui-base/70 px-4 py-3">
+      <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-ui-dim font-mono">
+        {label}
+      </div>
+      <div className="mt-1 text-sm font-semibold text-ui-bright">{value}</div>
+    </div>
+  );
+}
 
 export default TicketDetailPage;

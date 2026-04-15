@@ -23,9 +23,16 @@ const TicketListPage = () => {
     setError('');
     
     try {
-      const data = user?.role === 'USER'
-        ? await getMyTickets()
-        : await getAllTickets();
+      let data;
+
+      if (user?.role === 'USER') {
+        data = await getMyTickets();
+      } else if (user?.role === 'TECHNICIAN') {
+        data = await getAllTickets({ assignedTechnicianId: user.id });
+      } else {
+        data = await getAllTickets();
+      }
+
       setTickets(data);
     } catch (err) {
       console.error('Failed to fetch tickets:', err);

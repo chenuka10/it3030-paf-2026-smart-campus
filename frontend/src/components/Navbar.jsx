@@ -6,6 +6,7 @@ const NAV_LINKS = [
   { label: 'Home',      path: '/home',      icon: '⌂' },
   { label: 'Resources', path: '/resources', icon: '◫' },
   { label: 'Profile',   path: '/profile',   icon: '◉' },
+  { label: 'Tickets',   path: '/tickets',   icon: '✉' },
 ];
 
 export default function Navbar() {

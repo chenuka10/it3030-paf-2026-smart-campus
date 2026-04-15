@@ -49,7 +49,7 @@ const CommentItem = ({ comment, currentUserId, onUpdate, onDelete }) => {
       <div className="flex justify-between items-start mb-2">
         <div>
           <span className="font-medium text-gray-800">
-            {comment.userName || `User #${comment.userId}`}
+            {comment.userName || 'Unknown User'}
           </span>
           <span className="text-xs text-gray-500 ml-2">
             {formatDate(comment.createdAt)}

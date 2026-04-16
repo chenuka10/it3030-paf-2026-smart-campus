@@ -22,24 +22,23 @@ public class UserController {
 
     private final UserService userService;
 
-    // ── Self-service endpoints (declared FIRST to avoid /{id} conflict) ───────
+    // ── Self-service (declared before /{id} to avoid path conflict) ──────────
 
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<UserResponseDTO> getMyProfile(Authentication authentication) {
-        return ResponseEntity.ok(userService.getUserByEmail(resolveEmail(authentication)));
+    public ResponseEntity<UserResponseDTO> getMyProfile(Authentication auth) {
+        return ResponseEntity.ok(userService.getUserByEmail(email(auth)));
     }
 
     @PutMapping("/me")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<UserResponseDTO> updateMyProfile(
-            Authentication authentication,
+            Authentication auth,
             @Valid @RequestBody UpdateProfileRequest request) {
-        return ResponseEntity.ok(
-                userService.updateMyProfile(resolveEmail(authentication), request));
+        return ResponseEntity.ok(userService.updateMyProfile(email(auth), request));
     }
 
-    // ── Admin endpoints ───────────────────────────────────────────────────────
+    // ── Admin ─────────────────────────────────────────────────────────────────
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -56,24 +55,26 @@ public class UserController {
     @PutMapping("/{id}/role")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserResponseDTO> updateRole(
+            Authentication auth,
             @PathVariable Long id,
             @Valid @RequestBody UpdateRoleRequest request) {
-        return ResponseEntity.ok(userService.updateUserRole(id, request));
+        return ResponseEntity.ok(userService.updateUserRole(id, request, email(auth)));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> deleteUser(@PathVariable Long id) {
-        userService.deleteUser(id);
+    public ResponseEntity<?> deleteUser(Authentication auth, @PathVariable Long id) {
+        userService.deleteUser(id, email(auth));
         return ResponseEntity.ok(Map.of("message", "User deleted successfully"));
     }
 
-   
-    private String resolveEmail(Authentication authentication) {
-        if (authentication == null) throw new IllegalStateException("Not authenticated");
-        Object principal = authentication.getPrincipal();
-        if (principal instanceof UserDetails ud) return ud.getUsername();
-        if (principal instanceof String s)       return s;
-        throw new IllegalStateException("Unknown principal type: " + principal.getClass());
+    // ── Helper ────────────────────────────────────────────────────────────────
+
+    private String email(Authentication auth) {
+        if (auth == null) throw new IllegalStateException("Not authenticated");
+        Object p = auth.getPrincipal();
+        if (p instanceof UserDetails ud) return ud.getUsername();
+        if (p instanceof String s)       return s;
+        throw new IllegalStateException("Unknown principal: " + p.getClass());
     }
 }

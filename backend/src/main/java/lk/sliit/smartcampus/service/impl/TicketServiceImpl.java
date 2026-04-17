@@ -13,7 +13,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -24,6 +30,7 @@ public class TicketServiceImpl implements TicketService {
     private final TicketAttachmentRepository attachmentRepository;
     private final TicketCommentRepository commentRepository;
     private final UserRepository userRepository;
+    private final ResourceRepository resourceRepository;
     private final FileStorageService fileStorageService;
     
     @Override
@@ -92,6 +99,67 @@ public class TicketServiceImpl implements TicketService {
         return tickets.stream()
             .map(this::convertToResponseDTO)
             .collect(Collectors.toList());
+    }
+
+    @Override
+    public ResourceIssueAnalyticsDTO getResourceIssueAnalytics() {
+        List<Ticket> tickets = ticketRepository.findAll();
+        Map<Long, Resource> resourceById = resourceRepository.findAll().stream()
+            .collect(Collectors.toMap(Resource::getId, Function.identity()));
+
+        Map<Long, List<Ticket>> ticketsByResource = tickets.stream()
+            .collect(Collectors.groupingBy(Ticket::getResourceId));
+
+        long openTickets = tickets.stream()
+            .filter(ticket -> ticket.getStatus() == TicketStatus.OPEN || ticket.getStatus() == TicketStatus.IN_PROGRESS)
+            .count();
+
+        long resolvedTickets = tickets.stream()
+            .filter(ticket -> ticket.getStatus() == TicketStatus.RESOLVED || ticket.getStatus() == TicketStatus.CLOSED)
+            .count();
+
+        long urgentTickets = tickets.stream()
+            .filter(ticket -> ticket.getPriority() == TicketPriority.URGENT || ticket.getPriority() == TicketPriority.HIGH)
+            .count();
+
+        List<ResourceIssueAnalyticsDTO.ResourceInsight> topProblemResources = ticketsByResource.entrySet().stream()
+            .map(entry -> buildResourceInsight(entry.getKey(), entry.getValue(), resourceById.get(entry.getKey())))
+            .sorted(Comparator.comparingLong(ResourceIssueAnalyticsDTO.ResourceInsight::getRiskScore).reversed())
+            .limit(8)
+            .collect(Collectors.toList());
+
+        List<ResourceIssueAnalyticsDTO.TypeInsight> issuesByResourceType = ticketsByResource.entrySet().stream()
+            .collect(Collectors.groupingBy(
+                entry -> {
+                    Resource resource = resourceById.get(entry.getKey());
+                    return resource != null ? resource.getType().name() : "UNKNOWN";
+                },
+                Collectors.summingLong(entry -> entry.getValue().size())
+            ))
+            .entrySet().stream()
+            .map(entry -> new ResourceIssueAnalyticsDTO.TypeInsight(entry.getKey(), entry.getValue()))
+            .sorted(Comparator.comparingLong(ResourceIssueAnalyticsDTO.TypeInsight::getTicketCount).reversed())
+            .collect(Collectors.toList());
+
+        List<ResourceIssueAnalyticsDTO.StatusInsight> statusBreakdown = tickets.stream()
+            .collect(Collectors.groupingBy(ticket -> ticket.getStatus().name(), Collectors.counting()))
+            .entrySet().stream()
+            .map(entry -> new ResourceIssueAnalyticsDTO.StatusInsight(entry.getKey(), entry.getValue()))
+            .sorted(Comparator.comparingLong(ResourceIssueAnalyticsDTO.StatusInsight::getTicketCount).reversed())
+            .collect(Collectors.toList());
+
+        return new ResourceIssueAnalyticsDTO(
+            new ResourceIssueAnalyticsDTO.Summary(
+                tickets.size(),
+                openTickets,
+                resolvedTickets,
+                urgentTickets,
+                ticketsByResource.size()
+            ),
+            topProblemResources,
+            issuesByResourceType,
+            statusBreakdown
+        );
     }
     
     @Override
@@ -270,6 +338,47 @@ public class TicketServiceImpl implements TicketService {
             (statusUpdate.getRejectionReason() == null || statusUpdate.getRejectionReason().isBlank())) {
             throw new ValidationException("Rejection reason is required when rejecting a ticket");
         }
+    }
+
+    private ResourceIssueAnalyticsDTO.ResourceInsight buildResourceInsight(Long resourceId, List<Ticket> resourceTickets, Resource resource) {
+        long totalTickets = resourceTickets.size();
+        long openTickets = resourceTickets.stream()
+            .filter(ticket -> ticket.getStatus() == TicketStatus.OPEN || ticket.getStatus() == TicketStatus.IN_PROGRESS)
+            .count();
+        long urgentTickets = resourceTickets.stream()
+            .filter(ticket -> ticket.getPriority() == TicketPriority.URGENT || ticket.getPriority() == TicketPriority.HIGH)
+            .count();
+        long resolvedTickets = resourceTickets.stream()
+            .filter(ticket -> ticket.getStatus() == TicketStatus.RESOLVED || ticket.getStatus() == TicketStatus.CLOSED)
+            .count();
+
+        double averageResolutionHours = resourceTickets.stream()
+            .filter(ticket -> ticket.getStatus() == TicketStatus.RESOLVED || ticket.getStatus() == TicketStatus.CLOSED)
+            .mapToLong(ticket -> Duration.between(ticket.getCreatedAt(), ticket.getUpdatedAt()).toHours())
+            .average()
+            .orElse(0);
+
+        String lastReportedAt = resourceTickets.stream()
+            .map(Ticket::getCreatedAt)
+            .max(LocalDateTime::compareTo)
+            .map(date -> date.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+            .orElse(null);
+
+        long riskScore = totalTickets + openTickets + (urgentTickets * 2);
+
+        return new ResourceIssueAnalyticsDTO.ResourceInsight(
+            resourceId,
+            resource != null ? resource.getName() : "Unknown Resource",
+            resource != null ? resource.getType().name() : "UNKNOWN",
+            resource != null ? resource.getLocation() : "Unknown Location",
+            totalTickets,
+            openTickets,
+            urgentTickets,
+            resolvedTickets,
+            Math.round(averageResolutionHours * 10.0) / 10.0,
+            riskScore,
+            lastReportedAt
+        );
     }
     
     // Convert Ticket entity to TicketResponseDTO

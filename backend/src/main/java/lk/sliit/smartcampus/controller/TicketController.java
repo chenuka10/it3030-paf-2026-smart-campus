@@ -126,6 +126,12 @@ public ResponseEntity<Resource> getAttachment(@PathVariable String filename) {
         TicketResponseDTO ticket = ticketService.getTicketById(id);
         return ResponseEntity.ok(ticket);
     }
+
+    @GetMapping("/analytics/resources")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResourceIssueAnalyticsDTO> getResourceIssueAnalytics() {
+        return ResponseEntity.ok(ticketService.getResourceIssueAnalytics());
+    }
     
     /**
      * PATCH /api/tickets/{id}/status - Update ticket status

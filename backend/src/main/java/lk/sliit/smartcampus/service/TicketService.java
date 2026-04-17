@@ -12,6 +12,7 @@ public interface TicketService {
     TicketResponseDTO getTicketById(Long ticketId);
     List<TicketResponseDTO> getAllTickets(TicketStatus status, TicketPriority priority, Long assignedTechnicianId);
     List<TicketResponseDTO> getMyTickets(Long userId);
+    ResourceIssueAnalyticsDTO getResourceIssueAnalytics();
     TicketResponseDTO updateTicketStatus(Long ticketId, StatusUpdateDTO statusUpdate, Long userId);
     void deleteTicket(Long ticketId);
     

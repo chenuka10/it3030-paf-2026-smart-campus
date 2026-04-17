@@ -22,9 +22,17 @@ public class Notification {
     private String message;
     private boolean isRead;
 
+    @Enumerated(EnumType.STRING)
+    private NotificationEvent eventType;
+
+    // Target user (who receives it)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
+
+    // Actor (who triggered it — null for system events)
+    private String actorEmail;
+    private String actorName;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

@@ -1,6 +1,8 @@
 package lk.sliit.smartcampus.exception;
 
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.servlet.http.HttpServletRequest;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -70,5 +72,16 @@ public class GlobalExceptionHandler {
             case UNAUTHORIZED -> "Unauthorized access";
             default -> "Something went wrong";
         };
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<?> handleConflict(ConflictException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                "timestamp", LocalDateTime.now(),
+                "status", 409,
+                "error", "Conflict",
+                "message", ex.getMessage(),
+                "path", request.getRequestURI()
+        ));
     }
 }

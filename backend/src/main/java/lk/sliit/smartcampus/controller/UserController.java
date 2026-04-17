@@ -11,6 +11,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import lk.sliit.smartcampus.dto.CreateTechnicianRequest;
 
 import java.util.List;
 import java.util.Map;
@@ -66,6 +67,14 @@ public class UserController {
     public ResponseEntity<?> deleteUser(Authentication auth, @PathVariable Long id) {
         userService.deleteUser(id, email(auth));
         return ResponseEntity.ok(Map.of("message", "User deleted successfully"));
+    }
+
+    @PostMapping("/technicians")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UserResponseDTO> createTechnician(
+            Authentication auth,
+            @Valid @RequestBody CreateTechnicianRequest request) {
+        return ResponseEntity.ok(userService.createTechnician(request, email(auth)));
     }
 
     // ── Helper ────────────────────────────────────────────────────────────────

@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
+import lk.sliit.smartcampus.dto.CreateTechnicianRequest;
+import lk.sliit.smartcampus.exception.ConflictException;
 
 @Service
 @RequiredArgsConstructor
@@ -69,6 +71,31 @@ public class UserServiceImpl implements UserService {
         User user = findById(id);
         notificationService.onUserDeleted(user, actorEmail);
         userRepository.deleteById(id);
+    }
+
+    @Override
+    @Transactional
+    public UserResponseDTO createTechnician(CreateTechnicianRequest request, String actorEmail) {
+        String email = request.getEmail().trim().toLowerCase();
+
+        if (userRepository.existsByEmail(email)) {
+            throw new RuntimeException("A user with this email already exists");
+        }
+
+        User technician = User.builder()
+                .name(request.getName().trim())
+                .email(email)
+                .role(Role.TECHNICIAN)
+                .provider("ADMIN_CREATED")
+                .imageUrl(request.getImageUrl())
+                .phone(request.getPhone())
+                .bio(request.getBio())
+                .department(request.getDepartment())
+                .build();
+
+        User saved = userRepository.save(technician);
+
+        return toDTO(saved);
     }
 
     // Called by CustomOAuth2UserService on first Google login

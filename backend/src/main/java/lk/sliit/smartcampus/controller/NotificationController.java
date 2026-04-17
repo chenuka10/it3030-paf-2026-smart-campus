@@ -70,4 +70,20 @@ public class NotificationController {
         if (p instanceof String s)       return s;
         throw new IllegalStateException("Unknown principal: " + p.getClass());
     }
+
+    /** Clear all notifications */
+    @DeleteMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> clearAllNotifications(Authentication auth) {
+        notificationService.clearAllNotifications(email(auth));
+        return ResponseEntity.ok(Map.of("message", "All notifications cleared"));
+    }
+
+    /** Delete one notification */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> deleteOneNotification(@PathVariable Long id, Authentication auth) {
+        notificationService.deleteOneNotification(id, email(auth));
+        return ResponseEntity.ok(Map.of("message", "Notification deleted"));
+    }
 }

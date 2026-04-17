@@ -88,6 +88,23 @@ public class NotificationService {
             }
         });
     }
+    @Transactional
+    public void clearAllNotifications(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        notificationRepository.deleteAllByUserId(user.getId());
+    }
+
+    @Transactional
+    public void deleteOneNotification(Long notificationId, String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        int deleted = notificationRepository.deleteByIdAndUserId(notificationId, user.getId());
+        if (deleted == 0) {
+            throw new RuntimeException("Notification not found or access denied");
+        }
+    }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 

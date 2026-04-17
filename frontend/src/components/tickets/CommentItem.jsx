@@ -45,17 +45,17 @@ const CommentItem = ({ comment, currentUserId, onUpdate, onDelete }) => {
   };
 
   return (
-    <div className="bg-gray-50 rounded-lg p-4 mb-3">
-      <div className="flex justify-between items-start mb-2">
+    <div className="mb-3 rounded-2xl border border-ui-sky/10 bg-ui-base/72 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
+      <div className="mb-2 flex items-start justify-between gap-3">
         <div>
-          <span className="font-medium text-gray-800">
+          <span className="text-sm font-semibold text-ui-bright">
             {comment.userName || 'Unknown User'}
           </span>
-          <span className="text-xs text-gray-500 ml-2">
+          <span className="ml-2 text-xs text-ui-dim">
             {formatDate(comment.createdAt)}
           </span>
           {comment.updatedAt !== comment.createdAt && (
-            <span className="text-xs text-gray-400 ml-1">(edited)</span>
+            <span className="ml-1 text-xs text-ui-dim">(edited)</span>
           )}
         </div>
         
@@ -63,14 +63,14 @@ const CommentItem = ({ comment, currentUserId, onUpdate, onDelete }) => {
           <div className="flex gap-2">
             <button
               onClick={() => setIsEditing(true)}
-              className="text-blue-600 hover:text-blue-800 text-sm"
+              className="rounded-lg border border-ui-sky/14 px-2.5 py-1 text-xs font-semibold text-ui-sky transition hover:bg-ui-sky/6"
             >
               Edit
             </button>
             <button
               onClick={handleDelete}
               disabled={loading}
-              className="text-red-600 hover:text-red-800 text-sm"
+              className="rounded-lg border border-ui-danger/20 px-2.5 py-1 text-xs font-semibold text-ui-danger transition hover:bg-ui-danger/10 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Delete
             </button>
@@ -83,14 +83,14 @@ const CommentItem = ({ comment, currentUserId, onUpdate, onDelete }) => {
           <textarea
             value={editText}
             onChange={(e) => setEditText(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+            className="mb-2 w-full rounded-xl border border-ui-sky/14 bg-ui-base px-3 py-2 text-sm text-ui-bright outline-none transition focus:border-ui-sky/35"
             rows="3"
           />
           <div className="flex gap-2">
             <button
               onClick={handleSave}
               disabled={loading || !editText.trim()}
-              className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:bg-gray-400"
+              className="rounded-lg bg-[linear-gradient(135deg,var(--color-ui-sky),var(--color-ui-green))] px-3 py-1.5 text-xs font-bold text-ui-base transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? 'Saving...' : 'Save'}
             </button>
@@ -100,14 +100,14 @@ const CommentItem = ({ comment, currentUserId, onUpdate, onDelete }) => {
                 setEditText(comment.commentText);
               }}
               disabled={loading}
-              className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50"
+              className="rounded-lg border border-ui-sky/14 px-3 py-1.5 text-xs font-semibold text-ui-muted transition hover:bg-ui-sky/6 hover:text-ui-bright disabled:cursor-not-allowed disabled:opacity-60"
             >
               Cancel
             </button>
           </div>
         </div>
       ) : (
-        <p className="text-gray-700 whitespace-pre-wrap">{comment.commentText}</p>
+        <p className="whitespace-pre-wrap text-sm leading-6 text-ui-muted">{comment.commentText}</p>
       )}
     </div>
   );

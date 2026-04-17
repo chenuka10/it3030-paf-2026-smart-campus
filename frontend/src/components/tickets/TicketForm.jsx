@@ -24,6 +24,7 @@ const TicketForm = ({ onSuccess, onCancel }) => {
 
   const [attachments, setAttachments] = useState([]);
   const [previewUrls, setPreviewUrls] = useState([]);
+  const [currentStep, setCurrentStep] = useState(1);
 
   useEffect(() => {
     if (user?.email) {
@@ -61,6 +62,12 @@ const TicketForm = ({ onSuccess, onCancel }) => {
     () => resources.find((resource) => String(resource.id) === String(formData.resourceId)),
     [resources, formData.resourceId]
   );
+  const descriptionLength = formData.description.trim().length;
+  const stepConfig = [
+    { id: 1, label: 'Choose Resource' },
+    { id: 2, label: 'Issue Details' },
+    { id: 3, label: 'Contact & Attachments' }
+  ];
 
   const filteredResources = useMemo(() => {
     const query = resourceSearch.trim().toLowerCase();
@@ -162,6 +169,28 @@ const TicketForm = ({ onSuccess, onCancel }) => {
     }
   };
 
+  const canGoNextFromStep1 = Boolean(formData.resourceId);
+  const canGoNextFromStep2 = Boolean(formData.category && formData.priority && formData.description.trim());
+  const isFinalStep = currentStep === 3;
+
+  const handleNextStep = () => {
+    if (currentStep === 1 && !canGoNextFromStep1) {
+      setError('Please select a resource to continue');
+      return;
+    }
+    if (currentStep === 2 && !canGoNextFromStep2) {
+      setError('Please fill category, priority, and description to continue');
+      return;
+    }
+    setError('');
+    setCurrentStep((prev) => Math.min(prev + 1, 3));
+  };
+
+  const handlePreviousStep = () => {
+    setError('');
+    setCurrentStep((prev) => Math.max(prev - 1, 1));
+  };
+
   return (
     <div className="rounded-3xl border border-ui-sky/12 bg-ui-base/80 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-sm overflow-hidden">
       <div className="border-b border-ui-sky/10 bg-[linear-gradient(135deg,rgba(111,143,114,0.08),rgba(232,226,216,0.85))] px-6 py-6 md:px-8">
@@ -174,6 +203,17 @@ const TicketForm = ({ onSuccess, onCancel }) => {
         <p className="mt-2 max-w-[680px] text-sm leading-6 text-ui-muted">
           Select the affected resource, describe the issue clearly, and attach photos if needed.
         </p>
+        <div className="mt-4 grid gap-2 text-[11px] font-semibold uppercase tracking-[0.1em] sm:grid-cols-3">
+          {stepConfig.map((step) => (
+            <StepPill
+              key={step.id}
+              number={step.id}
+              label={step.label}
+              active={currentStep === step.id}
+              completed={currentStep > step.id}
+            />
+          ))}
+        </div>
       </div>
 
       <div className="px-6 py-6 md:px-8">
@@ -184,7 +224,8 @@ const TicketForm = ({ onSuccess, onCancel }) => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-7">
-          <section>
+          {currentStep === 1 && (
+            <section className="rounded-[22px] border border-ui-sky/10 bg-ui-base/70 p-4 md:p-5">
             <SectionHeader
               title="Resource"
               description="Choose the facility, room, or equipment connected to the issue."
@@ -216,6 +257,11 @@ const TicketForm = ({ onSuccess, onCancel }) => {
                   </option>
                 ))}
               </select>
+              {!loadingResources && resources.length > 0 && (
+                <p className="mt-2 text-xs text-ui-dim">
+                  {filteredResources.length} matching resource{filteredResources.length !== 1 ? 's' : ''} found.
+                </p>
+              )}
             </div>
 
             {!loadingResources && filteredResources.length > 0 && (
@@ -269,10 +315,12 @@ const TicketForm = ({ onSuccess, onCancel }) => {
                 <DetailItem label="Type" value={selectedResource.type?.replace(/_/g, ' ') || 'Unknown'} />
               </div>
             )}
-          </section>
+            </section>
+          )}
 
-          <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-            <div className="space-y-5">
+          {currentStep === 2 && (
+            <section className="rounded-[22px] border border-ui-sky/10 bg-ui-base/70 p-4 md:p-5">
+              <div className="space-y-5">
               <SectionHeader
                 title="Issue Details"
                 description="Provide the maintenance team with the key information they need."
@@ -324,10 +372,20 @@ const TicketForm = ({ onSuccess, onCancel }) => {
                   placeholder="Describe what happened, where it occurs, and any details that would help with diagnosis."
                   required
                 />
+                <div className="mt-2 flex items-center justify-between text-xs">
+                  <span className="text-ui-dim">Tip: include location details and when the issue started.</span>
+                  <span className={`${descriptionLength < 20 ? 'text-ui-warn' : 'text-ui-dim'}`}>
+                    {descriptionLength} characters
+                  </span>
+                </div>
               </Field>
-            </div>
+              </div>
+            </section>
+          )}
 
-            <div className="space-y-5">
+          {currentStep === 3 && (
+            <section className="rounded-[22px] border border-ui-sky/10 bg-ui-base/70 p-4 md:p-5">
+              <div className="space-y-5">
               <SectionHeader
                 title="Contact & Attachments"
                 description="Let the team reach you and review supporting evidence."
@@ -387,6 +445,9 @@ const TicketForm = ({ onSuccess, onCancel }) => {
                     className="hidden"
                   />
                 </label>
+                <p className="mt-2 text-xs text-ui-dim">
+                  JPG, PNG, and other image formats are supported.
+                </p>
 
                 {previewUrls.length > 0 && (
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -415,30 +476,54 @@ const TicketForm = ({ onSuccess, onCancel }) => {
                   </div>
                 )}
               </div>
-            </div>
-          </section>
+              </div>
+            </section>
+          )}
 
-          <div className="flex flex-col gap-3 border-t border-ui-sky/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-ui-dim">
-              The ticket will be created immediately and added to the maintenance queue.
-            </p>
-            <div className="flex gap-3">
-              {onCancel && (
-                <button
-                  type="button"
-                  onClick={onCancel}
-                  className="rounded-xl border border-ui-sky/14 px-5 py-3 text-sm font-semibold text-ui-muted transition hover:bg-ui-sky/6 hover:text-ui-bright"
-                >
-                  Cancel
-                </button>
-              )}
-              <button
-                type="submit"
-                disabled={loading || loadingResources}
-                className="rounded-xl bg-[linear-gradient(135deg,var(--color-ui-sky),var(--color-ui-green))] px-6 py-3 text-sm font-bold text-ui-base transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {loading ? 'Creating...' : 'Create Ticket'}
-              </button>
+          <div className="sticky bottom-0 z-10 -mx-6 border-t border-ui-sky/12 bg-ui-base/90 px-6 py-4 backdrop-blur-sm md:-mx-8 md:px-8">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-ui-dim">
+                Step {currentStep} of 3 {isFinalStep ? ' - Ready to submit your ticket.' : '- Complete this section to continue.'}
+              </p>
+              <div className="flex gap-3">
+                {currentStep > 1 && (
+                  <button
+                    type="button"
+                    onClick={handlePreviousStep}
+                    className="rounded-xl border border-ui-sky/14 px-5 py-3 text-sm font-semibold text-ui-muted transition hover:bg-ui-sky/6 hover:text-ui-bright"
+                  >
+                    Back
+                  </button>
+                )}
+                {!isFinalStep ? (
+                  <button
+                    type="button"
+                    onClick={handleNextStep}
+                    className="rounded-xl bg-[linear-gradient(135deg,var(--color-ui-sky),var(--color-ui-green))] px-6 py-3 text-sm font-bold text-ui-base transition hover:opacity-95"
+                  >
+                    Continue
+                  </button>
+                ) : (
+                  <>
+                    {onCancel && (
+                      <button
+                        type="button"
+                        onClick={onCancel}
+                        className="rounded-xl border border-ui-sky/14 px-5 py-3 text-sm font-semibold text-ui-muted transition hover:bg-ui-sky/6 hover:text-ui-bright"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={loading || loadingResources}
+                      className="rounded-xl bg-[linear-gradient(135deg,var(--color-ui-sky),var(--color-ui-green))] px-6 py-3 text-sm font-bold text-ui-base transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {loading ? 'Creating...' : 'Create Ticket'}
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </form>
@@ -475,6 +560,20 @@ function DetailItem({ label, value }) {
         {label}
       </div>
       <div className="mt-1 text-sm font-semibold text-ui-bright">{value}</div>
+    </div>
+  );
+}
+
+function StepPill({ number, label, active = false, completed = false }) {
+  const tone = completed
+    ? 'border-ui-green/25 bg-ui-green/10 text-ui-green'
+    : active
+      ? 'border-ui-sky/25 bg-ui-sky/8 text-ui-sky'
+      : 'border-ui-sky/12 bg-ui-base/60 text-ui-dim';
+
+  return (
+    <div className={`rounded-full border px-3 py-1.5 text-center ${tone}`}>
+      {number}. {label}
     </div>
   );
 }

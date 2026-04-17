@@ -28,19 +28,19 @@ export const TICKET_CATEGORY = {
 
 // Status badge colors (for Tailwind CSS)
 export const STATUS_COLORS = {
-  OPEN: 'bg-blue-100 text-blue-800',
-  IN_PROGRESS: 'bg-yellow-100 text-yellow-800',
-  RESOLVED: 'bg-green-100 text-green-800',
-  CLOSED: 'bg-gray-100 text-gray-800',
-  REJECTED: 'bg-red-100 text-red-800'
+  OPEN: 'border border-ui-warn/22 bg-ui-warn/10 text-ui-warn',
+  IN_PROGRESS: 'border border-ui-sky/22 bg-ui-sky/12 text-ui-sky',
+  RESOLVED: 'border border-ui-green/22 bg-ui-green/12 text-ui-green',
+  CLOSED: 'border border-ui-sky/16 bg-ui-sky/6 text-ui-muted',
+  REJECTED: 'border border-ui-danger/24 bg-ui-danger/10 text-ui-danger'
 };
 
 // Priority badge colors
 export const PRIORITY_COLORS = {
-  URGENT: 'bg-red-100 text-red-800',
-  HIGH: 'bg-orange-100 text-orange-800',
-  MEDIUM: 'bg-yellow-100 text-yellow-800',
-  LOW: 'bg-green-100 text-green-800'
+  URGENT: 'border border-ui-danger/24 bg-ui-danger/10 text-ui-danger',
+  HIGH: 'border border-ui-warn/22 bg-ui-warn/10 text-ui-warn',
+  MEDIUM: 'border border-ui-sky/22 bg-ui-sky/12 text-ui-sky',
+  LOW: 'border border-ui-green/22 bg-ui-green/12 text-ui-green'
 };
 
 // Valid status transitions

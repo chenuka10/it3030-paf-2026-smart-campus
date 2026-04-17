@@ -79,15 +79,20 @@ const StatusUpdateModal = ({ ticket, onClose, onSuccess }) => {
     !(formData.status === 'IN_PROGRESS' && (loadingTechnicians || technicians.length === 0));
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-        <h2 className="text-xl font-bold mb-4">Update Ticket Status</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4">
+      <div className="w-full max-w-lg overflow-hidden rounded-[24px] border border-ui-sky/14 bg-ui-base/95 shadow-[0_28px_70px_rgba(15,23,42,0.30)] backdrop-blur-sm">
+        <div className="border-b border-ui-sky/10 bg-[linear-gradient(135deg,rgba(111,143,114,0.08),rgba(232,226,216,0.85))] px-6 py-5">
+          <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-ui-dim font-mono">
+            Workflow Action
+          </div>
+          <h2 className="mt-2 text-[24px] font-extrabold tracking-[-0.03em] text-ui-surface">Update Ticket Status</h2>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 px-6 py-6">
           {/* Status */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              New Status <span className="text-red-500">*</span>
+            <label className="mb-1 block text-sm font-semibold text-ui-bright">
+              New Status <span className="text-ui-danger">*</span>
             </label>
             <select
               value={formData.status}
@@ -101,7 +106,7 @@ const StatusUpdateModal = ({ ticket, onClose, onSuccess }) => {
                   assignedTechnicianId: nextStatus === 'IN_PROGRESS' ? formData.assignedTechnicianId : ''
                 });
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-xl border border-ui-sky/14 bg-ui-base px-4 py-3 text-sm text-ui-bright outline-none transition focus:border-ui-sky/35"
               required
             >
               <option value="">Select status</option>
@@ -112,7 +117,7 @@ const StatusUpdateModal = ({ ticket, onClose, onSuccess }) => {
               ))}
             </select>
             {validStatuses.length === 0 && (
-              <p className="mt-1 text-xs text-red-500">
+              <p className="mt-2 text-xs font-medium text-ui-danger">
                 No valid status transitions available from {ticket.status}
               </p>
             )}
@@ -121,13 +126,13 @@ const StatusUpdateModal = ({ ticket, onClose, onSuccess }) => {
           {/* Assign Technician */}
           {formData.status === 'IN_PROGRESS' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="mb-1 block text-sm font-semibold text-ui-bright">
                 Assign Technician
               </label>
               <select
                 value={formData.assignedTechnicianId}
                 onChange={(e) => setFormData({ ...formData, assignedTechnicianId: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-xl border border-ui-sky/14 bg-ui-base px-4 py-3 text-sm text-ui-bright outline-none transition focus:border-ui-sky/35"
                 required
               >
                 <option value="">Select technician</option>
@@ -138,10 +143,10 @@ const StatusUpdateModal = ({ ticket, onClose, onSuccess }) => {
                 ))}
               </select>
               {loadingTechnicians && (
-                <p className="mt-1 text-xs text-gray-500">Loading technicians...</p>
+                <p className="mt-2 text-xs text-ui-dim">Loading technicians...</p>
               )}
               {!loadingTechnicians && technicians.length === 0 && (
-                <p className="mt-1 text-xs text-red-500">No technicians available</p>
+                <p className="mt-2 text-xs font-medium text-ui-danger">No technicians available</p>
               )}
             </div>
           )}
@@ -149,13 +154,13 @@ const StatusUpdateModal = ({ ticket, onClose, onSuccess }) => {
           {/* Resolution Notes */}
           {formData.status === 'RESOLVED' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="mb-1 block text-sm font-semibold text-ui-bright">
                 Resolution Notes
               </label>
               <textarea
                 value={formData.resolutionNotes}
                 onChange={(e) => setFormData({ ...formData, resolutionNotes: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-xl border border-ui-sky/14 bg-ui-base px-4 py-3 text-sm text-ui-bright outline-none transition focus:border-ui-sky/35"
                 rows="3"
                 placeholder="Describe how the issue was resolved..."
                 required
@@ -166,13 +171,13 @@ const StatusUpdateModal = ({ ticket, onClose, onSuccess }) => {
           {/* Rejection Reason */}
           {formData.status === 'REJECTED' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Rejection Reason <span className="text-red-500">*</span>
+              <label className="mb-1 block text-sm font-semibold text-ui-bright">
+                Rejection Reason <span className="text-ui-danger">*</span>
               </label>
               <textarea
                 value={formData.rejectionReason}
                 onChange={(e) => setFormData({ ...formData, rejectionReason: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-xl border border-ui-sky/14 bg-ui-base px-4 py-3 text-sm text-ui-bright outline-none transition focus:border-ui-sky/35"
                 rows="3"
                 placeholder="Explain why this ticket is being rejected..."
                 required
@@ -185,7 +190,7 @@ const StatusUpdateModal = ({ ticket, onClose, onSuccess }) => {
             <button
               type="submit"
               disabled={!canSubmit}
-              className="flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+              className="flex-1 rounded-xl bg-[linear-gradient(135deg,var(--color-ui-sky),var(--color-ui-green))] py-3 text-sm font-bold text-ui-base transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? 'Updating...' : 'Update Status'}
             </button>
@@ -193,7 +198,7 @@ const StatusUpdateModal = ({ ticket, onClose, onSuccess }) => {
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+              className="rounded-xl border border-ui-sky/14 px-4 py-3 text-sm font-semibold text-ui-muted transition hover:bg-ui-sky/6 hover:text-ui-bright disabled:cursor-not-allowed disabled:opacity-60"
             >
               Cancel
             </button>

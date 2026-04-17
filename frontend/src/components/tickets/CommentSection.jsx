@@ -53,22 +53,27 @@ const CommentSection = ({ ticketId, currentUserId }) => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 mt-6">
-      <h3 className="text-xl font-semibold mb-4">Comments ({comments.length})</h3>
+    <section className="mt-6 rounded-[24px] border border-ui-sky/12 bg-ui-base/82 p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)] md:p-6">
+      <div className="mb-4 flex items-end justify-between gap-3">
+        <div>
+          <h3 className="text-[20px] font-bold tracking-[-0.02em] text-ui-surface">Comments ({comments.length})</h3>
+          <p className="mt-1 text-sm text-ui-muted">Collaborate with updates and technical context.</p>
+        </div>
+      </div>
 
       {/* Add Comment Form */}
       <form onSubmit={handleAddComment} className="mb-6">
         <textarea
           value={newComment}
           onChange={(e) => setNewComment(e.target.value)}
-          placeholder="Add a comment..."
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+          placeholder="Write an update, question, or resolution note..."
+          className="mb-3 w-full rounded-2xl border border-ui-sky/14 bg-ui-base px-4 py-3 text-sm text-ui-bright outline-none transition focus:border-ui-sky/35"
           rows="3"
         />
         <button
           type="submit"
           disabled={submitting || !newComment.trim()}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+          className="rounded-xl bg-[linear-gradient(135deg,var(--color-ui-sky),var(--color-ui-green))] px-5 py-2.5 text-sm font-bold text-ui-base transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {submitting ? 'Posting...' : 'Post Comment'}
         </button>
@@ -76,12 +81,12 @@ const CommentSection = ({ ticketId, currentUserId }) => {
 
       {/* Comments List */}
       {loading ? (
-        <div className="text-center py-4">
-          <p className="text-gray-500">Loading comments...</p>
+        <div className="rounded-2xl border border-ui-sky/10 bg-ui-panel/20 py-8 text-center">
+          <p className="text-sm text-ui-muted">Loading comments...</p>
         </div>
       ) : comments.length === 0 ? (
-        <div className="text-center py-6 bg-gray-50 rounded-lg">
-          <p className="text-gray-500">No comments yet. Be the first to comment!</p>
+        <div className="rounded-2xl border border-dashed border-ui-sky/14 bg-ui-sky/4 py-9 text-center">
+          <p className="text-sm text-ui-muted">No comments yet. Be the first to add one.</p>
         </div>
       ) : (
         <div>
@@ -96,7 +101,7 @@ const CommentSection = ({ ticketId, currentUserId }) => {
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 };
 

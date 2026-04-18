@@ -349,27 +349,32 @@ public class BookingServiceImpl implements BookingService {
     }
 
     private BookingResponseDTO mapToResponse(Booking booking) {
-        List<Long> participantIds = bookingParticipantRepository.findByBookingId(booking.getId())
-                .stream()
-                .map(bp -> bp.getUser().getId())
-                .collect(Collectors.toList());
+    List<Long> participantIds = bookingParticipantRepository.findByBookingId(booking.getId())
+            .stream()
+            .map(bp -> bp.getUser().getId())
+            .collect(Collectors.toList());
 
-        return BookingResponseDTO.builder()
-                .id(booking.getId())
-                .resourceId(booking.getResource().getId())
-                .resourceName(booking.getResource().getName())
-                .userId(booking.getUser().getId())
-                .userEmail(booking.getUser().getEmail())
-                .bookingDate(booking.getBookingDate())
-                .startTime(booking.getStartTime())
-                .endTime(booking.getEndTime())
-                .purpose(booking.getPurpose())
-                .attendeesCount(booking.getAttendeesCount())
-                .status(booking.getStatus())
-                .adminReason(booking.getAdminReason())
-                .participantIds(participantIds)
-                .createdAt(booking.getCreatedAt())
-                .updatedAt(booking.getUpdatedAt())
-                .build();
-    }
+    return BookingResponseDTO.builder()
+            .id(booking.getId())
+            .resourceId(booking.getResource().getId())
+            .resourceName(booking.getResource().getName())
+            .userId(booking.getUser().getId())
+            .userEmail(booking.getUser().getEmail())
+            .bookingDate(booking.getBookingDate())
+            .startTime(booking.getStartTime())
+            .endTime(booking.getEndTime())
+            .purpose(booking.getPurpose())
+            .attendeesCount(booking.getAttendeesCount())
+            .status(booking.getStatus())
+            .adminReason(booking.getAdminReason())
+            .participantIds(participantIds)
+            .createdAt(booking.getCreatedAt())
+            .updatedAt(booking.getUpdatedAt())
+            .qrToken(booking.getQrToken())
+            .qrGeneratedAt(booking.getQrGeneratedAt())
+            .qrEmailSentAt(booking.getQrEmailSentAt())
+            .checkedIn(booking.getCheckedIn())
+            .checkedInAt(booking.getCheckedInAt())
+            .build();
+}
 }

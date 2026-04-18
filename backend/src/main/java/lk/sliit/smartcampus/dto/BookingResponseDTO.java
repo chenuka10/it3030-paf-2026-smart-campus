@@ -1,13 +1,12 @@
 package lk.sliit.smartcampus.dto;
 
-import lk.sliit.smartcampus.entity.Booking;
-import lombok.Builder;
-import lombok.Data;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.List;
+
+import lk.sliit.smartcampus.entity.Booking;
+import lombok.Builder;
+import lombok.Data;
 
 @Data
 @Builder
@@ -24,7 +23,11 @@ public class BookingResponseDTO {
     private Integer attendeesCount;
     private Booking.BookingStatus status;
     private String adminReason;
-    private List<Long> participantIds;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    private Boolean checkedIn;
+    private LocalDateTime checkedInAt;
+
+    private String qrToken;
 }

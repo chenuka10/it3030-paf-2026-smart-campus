@@ -9,6 +9,7 @@ import OAuthSuccess from './pages/OAuthSuccess';
 import Home    from './pages/Home';
 import Profile from './pages/Profile';
 import Resources from './pages/Resources';  // ← ADD THIS IMPORT
+import Bookings from './pages/Bookings';
  
 // Admin
 import AdminHub           from './pages/admin/AdminHub';
@@ -35,6 +36,7 @@ function App() {
           <Route path="/home"    element={<Home />} />
           <Route path="/resources" element={<Resources />} />  {/* ← Now this will work */}
           <Route path="/profile" element={<Profile />} />
+          <Route path="/bookings" element={<Bookings />} />
  
           {/* Admin routes (sidebar appears) */}
           <Route path="/admin" element={<AdminHub />} />

@@ -122,3 +122,22 @@
   70%  { box-shadow: 0 0 0 10px  rgba(111, 143, 114, 0);   }
   100% { box-shadow: 0 0 0 0px   rgba(111, 143, 114, 0);   }
 }
+
+/* ===== CUSTOM SCROLLBAR ===== */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(111, 143, 114, 0.35); /* brand green */
+  border-radius: 999px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(111, 143, 114, 0.6);
+}

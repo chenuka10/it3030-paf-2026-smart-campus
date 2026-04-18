@@ -1,4 +1,4 @@
-// Resources.jsx - Fixed with proper available slots calculation
+// Resources.jsx - Fixed with correct available slots calculation
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -8,6 +8,92 @@ import Navbar from "../components/Navbar";
 const STATUS_STYLES = {
   ACTIVE: { bg: 'rgba(34,197,94,0.12)', text: '#4ade80', border: 'rgba(34,197,94,0.25)', label: 'Active' },
   OUT_OF_SERVICE: { bg: 'rgba(251,113,133,0.12)', text: '#fb7185', border: 'rgba(251,113,133,0.25)', label: 'Out of Service' },
+};
+
+// ============================================================
+// HELPER FUNCTION: Calculate available slots for a resource TODAY
+// ============================================================
+const calculateAvailableSlots = (resource, bookings = []) => {
+  if (resource.status !== 'ACTIVE') return 0;
+  
+  // Get resource operating hours
+  const openHour = parseInt(resource.availableFrom?.split(':')[0] || 8);
+  const openMinute = parseInt(resource.availableFrom?.split(':')[1] || 0);
+  const closeHour = parseInt(resource.availableTo?.split(':')[0] || 18);
+  const closeMinute = parseInt(resource.availableTo?.split(':')[1] || 0);
+  const maxHours = resource.maxBookingHours || 2;
+  
+  // Convert to minutes for easier calculation
+  const openMinutes = openHour * 60 + openMinute;
+  const closeMinutes = closeHour * 60 + closeMinute;
+  const slotDurationMinutes = maxHours * 60;
+  
+  // Generate all possible time slots for today
+  const possibleSlots = [];
+  let currentStart = openMinutes;
+  
+  while (currentStart + slotDurationMinutes <= closeMinutes) {
+    const startHour = Math.floor(currentStart / 60);
+    const startMinute = currentStart % 60;
+    const endTime = currentStart + slotDurationMinutes;
+    const endHour = Math.floor(endTime / 60);
+    const endMinute = endTime % 60;
+    
+    possibleSlots.push({
+      start: currentStart,
+      end: currentStart + slotDurationMinutes,
+      startTime: `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`,
+      endTime: `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`,
+      isAvailable: true
+    });
+    
+    currentStart += slotDurationMinutes;
+  }
+  
+  // Get today's date
+  const today = new Date().toISOString().split('T')[0];
+  
+  // Get all bookings for this resource today
+  const todayBookings = bookings.filter(booking => {
+    if (booking.resourceId !== resource.id) return false;
+    const bookingDate = booking.startTime?.split('T')[0];
+    return bookingDate === today;
+  });
+  
+  // Convert bookings to minutes
+  const bookedSlots = todayBookings.map(booking => {
+    const startTimeStr = booking.startTime?.split('T')[1]?.slice(0, 5);
+    const endTimeStr = booking.endTime?.split('T')[1]?.slice(0, 5);
+    
+    if (!startTimeStr || !endTimeStr) return null;
+    
+    const startHour = parseInt(startTimeStr.split(':')[0]);
+    const startMinute = parseInt(startTimeStr.split(':')[1]);
+    const endHour = parseInt(endTimeStr.split(':')[0]);
+    const endMinute = parseInt(endTimeStr.split(':')[1]);
+    
+    return {
+      start: startHour * 60 + startMinute,
+      end: endHour * 60 + endMinute
+    };
+  }).filter(slot => slot !== null);
+  
+  // Mark slots as unavailable if they overlap with any booking
+  possibleSlots.forEach(slot => {
+    for (const bookedSlot of bookedSlots) {
+      // Check if slot overlaps with booking
+      const overlaps = (slot.start < bookedSlot.end && slot.end > bookedSlot.start);
+      if (overlaps) {
+        slot.isAvailable = false;
+        break;
+      }
+    }
+  });
+  
+  // Count available slots
+  const availableSlots = possibleSlots.filter(slot => slot.isAvailable).length;
+  
+  return availableSlots;
 };
 
 // ============================================================
@@ -63,43 +149,6 @@ const FavoriteButton = ({ resourceId, isFavorite, onToggle, size = 'normal' }) =
       {loading ? '⏳' : (favorite ? '⭐' : '☆')}
     </button>
   );
-};
-
-// ============================================================
-// HELPER FUNCTION: Calculate available slots for a resource
-// ============================================================
-const calculateAvailableSlots = (resource, bookings = []) => {
-  if (resource.status !== 'ACTIVE') return 0;
-  
-  // Get operating hours
-  const openHour = parseInt(resource.availableFrom?.split(':')[0] || 8);
-  const closeHour = parseInt(resource.availableTo?.split(':')[0] || 18);
-  const maxHours = resource.maxBookingHours || 2;
-  
-  // Calculate total available hours in the day
-  const totalAvailableHours = closeHour - openHour;
-  
-  // Calculate total booked hours for today
-  const today = new Date().toISOString().split('T')[0];
-  const todayBookings = bookings.filter(booking => {
-    const bookingDate = new Date(booking.startTime).toISOString().split('T')[0];
-    return bookingDate === today;
-  });
-  
-  let bookedHours = 0;
-  todayBookings.forEach(booking => {
-    const start = parseInt(booking.startTime?.split('T')[1]?.split(':')[0] || 0);
-    const end = parseInt(booking.endTime?.split('T')[1]?.split(':')[0] || 0);
-    bookedHours += (end - start);
-  });
-  
-  // Calculate available hours
-  const availableHours = Math.max(0, totalAvailableHours - bookedHours);
-  
-  // Calculate number of available slots (each slot is maxHours long)
-  const availableSlots = Math.floor(availableHours / maxHours);
-  
-  return availableSlots;
 };
 
 // ============================================================
@@ -531,11 +580,16 @@ export default function Resources() {
       
       // Fetch all bookings for today
       const today = new Date().toISOString().split('T')[0];
-      const bookingsRes = await api.get("/api/bookings", {
-        params: { startDate: today, endDate: today }
-      });
-      const bookingsData = bookingsRes.data || [];
-      setAllBookings(bookingsData);
+      try {
+        const bookingsRes = await api.get("/api/bookings", {
+          params: { startDate: today, endDate: today }
+        });
+        const bookingsData = bookingsRes.data || [];
+        setAllBookings(bookingsData);
+      } catch (err) {
+        console.error('Error fetching bookings:', err);
+        setAllBookings([]);
+      }
       
       // Group resources by type and calculate stats
       const typeMap = new Map();
@@ -555,7 +609,7 @@ export default function Resources() {
         }
       });
       
-      // Calculate stats for each category
+      // Calculate stats for each category using the actual bookings
       for (const [type, cat] of typeMap) {
         const catResources = resourcesData.filter(r => r.type === type);
         cat.stats.total = catResources.length;
@@ -564,19 +618,30 @@ export default function Resources() {
         let totalInUse = 0;
         
         for (const resource of catResources) {
-          // Calculate available slots based on resource hours and max booking hours
-          const availableSlots = calculateAvailableSlots(resource, bookingsData);
+          // Calculate available slots based on actual bookings
+          const availableSlots = calculateAvailableSlots(resource, allBookings);
           totalAvailableSlots += availableSlots;
           
-          // Check if resource is currently in use (has active booking at current time)
+          // Check if resource is currently in use
           const now = new Date();
-          const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+          const currentTime = now.getHours() * 60 + now.getMinutes();
           
-          const isCurrentlyBooked = bookingsData.some(booking => {
+          const isCurrentlyBooked = allBookings.some(booking => {
             if (booking.resourceId !== resource.id) return false;
-            const startTime = booking.startTime?.split('T')[1]?.slice(0, 5);
-            const endTime = booking.endTime?.split('T')[1]?.slice(0, 5);
-            return currentTime >= startTime && currentTime < endTime;
+            const startTimeStr = booking.startTime?.split('T')[1]?.slice(0, 5);
+            const endTimeStr = booking.endTime?.split('T')[1]?.slice(0, 5);
+            
+            if (!startTimeStr || !endTimeStr) return false;
+            
+            const startHour = parseInt(startTimeStr.split(':')[0]);
+            const startMinute = parseInt(startTimeStr.split(':')[1]);
+            const endHour = parseInt(endTimeStr.split(':')[0]);
+            const endMinute = parseInt(endTimeStr.split(':')[1]);
+            
+            const start = startHour * 60 + startMinute;
+            const end = endHour * 60 + endMinute;
+            
+            return currentTime >= start && currentTime < end;
           });
           
           if (isCurrentlyBooked) {
@@ -592,35 +657,6 @@ export default function Resources() {
     } catch (err) {
       console.error('Error fetching data:', err);
       setError('Failed to load resources. Please try again later.');
-      
-      // Fallback: Show categories with mock data for demonstration
-      if (resources.length > 0) {
-        const typeMap = new Map();
-        resources.forEach(resource => {
-          if (!typeMap.has(resource.type)) {
-            typeMap.set(resource.type, {
-              id: resource.type,
-              title: resource.type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase()),
-              description: `${resource.type.replace(/_/g, ' ')} facilities available on campus`,
-              icon: getIconForType(resource.type),
-              color: getColorForType(resource.type),
-              borderColor: getBorderColorForType(resource.type),
-              image: getImageForType(resource.type),
-              stats: { total: 0, availableSlots: 0, inUse: 0 }
-            });
-          }
-        });
-        
-        for (const [type, cat] of typeMap) {
-          const catResources = resources.filter(r => r.type === type);
-          cat.stats.total = catResources.length;
-          // Mock available slots for demonstration
-          cat.stats.availableSlots = catResources.length * 3;
-          cat.stats.inUse = Math.floor(catResources.length / 2);
-        }
-        
-        setCategories(Array.from(typeMap.values()));
-      }
     } finally {
       setLoading(false);
     }
@@ -773,13 +809,27 @@ export default function Resources() {
   const ResourceDetailCard = ({ resource, onViewDetails }) => {
     const isFavorite = favorites.includes(resource.id);
     const availableSlots = calculateAvailableSlots(resource, allBookings);
+    
+    // Check if currently in use
+    const now = new Date();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+    
     const isInUse = allBookings.some(booking => {
       if (booking.resourceId !== resource.id) return false;
-      const now = new Date();
-      const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-      const startTime = booking.startTime?.split('T')[1]?.slice(0, 5);
-      const endTime = booking.endTime?.split('T')[1]?.slice(0, 5);
-      return currentTime >= startTime && currentTime < endTime;
+      const startTimeStr = booking.startTime?.split('T')[1]?.slice(0, 5);
+      const endTimeStr = booking.endTime?.split('T')[1]?.slice(0, 5);
+      
+      if (!startTimeStr || !endTimeStr) return false;
+      
+      const startHour = parseInt(startTimeStr.split(':')[0]);
+      const startMinute = parseInt(startTimeStr.split(':')[1]);
+      const endHour = parseInt(endTimeStr.split(':')[0]);
+      const endMinute = parseInt(endTimeStr.split(':')[1]);
+      
+      const start = startHour * 60 + startMinute;
+      const end = endHour * 60 + endMinute;
+      
+      return currentTime >= start && currentTime < end;
     });
     
     return (
@@ -1158,14 +1208,27 @@ export default function Resources() {
           ) : (
             <div className="space-y-3">
               {categoryResources.map((resource) => {
+                const now = new Date();
+                const currentTime = now.getHours() * 60 + now.getMinutes();
+                
                 const isInUse = allBookings.some(booking => {
                   if (booking.resourceId !== resource.id) return false;
-                  const now = new Date();
-                  const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-                  const startTime = booking.startTime?.split('T')[1]?.slice(0, 5);
-                  const endTime = booking.endTime?.split('T')[1]?.slice(0, 5);
-                  return currentTime >= startTime && currentTime < endTime;
+                  const startTimeStr = booking.startTime?.split('T')[1]?.slice(0, 5);
+                  const endTimeStr = booking.endTime?.split('T')[1]?.slice(0, 5);
+                  
+                  if (!startTimeStr || !endTimeStr) return false;
+                  
+                  const startHour = parseInt(startTimeStr.split(':')[0]);
+                  const startMinute = parseInt(startTimeStr.split(':')[1]);
+                  const endHour = parseInt(endTimeStr.split(':')[0]);
+                  const endMinute = parseInt(endTimeStr.split(':')[1]);
+                  
+                  const start = startHour * 60 + startMinute;
+                  const end = endHour * 60 + endMinute;
+                  
+                  return currentTime >= start && currentTime < end;
                 });
+                
                 return (
                   <div 
                     key={resource.id}

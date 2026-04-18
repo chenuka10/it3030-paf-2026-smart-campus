@@ -28,6 +28,13 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public List<UserResponseDTO> getUsersByRole(Role role) {
+        return userRepository.findByRole(role).stream()
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public UserResponseDTO getUserById(Long id) {
         return toDTO(findById(id));
     }

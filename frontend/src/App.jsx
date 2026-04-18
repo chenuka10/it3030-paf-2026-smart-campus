@@ -10,7 +10,10 @@ import Home    from './pages/Home';
 import Profile from './pages/Profile';
 import Resources from './pages/Resources';  // ← ADD THIS IMPORT
 import Bookings from './pages/Bookings';
- 
+//import TicketForm from './components/tickets/TicketForm'; 
+import TicketListPage from './pages/tickets/TicketListPage';
+import CreateTicket from './pages/tickets/CreateTicket';
+import TicketDetailPage from './pages/tickets/TicketDetailPage';
 // Admin
 import AdminHub           from './pages/admin/AdminHub';
 import AdminUsers         from './pages/admin/AdminUsers';
@@ -37,7 +40,9 @@ function App() {
           <Route path="/resources" element={<Resources />} />  {/* ← Now this will work */}
           <Route path="/profile" element={<Profile />} />
           <Route path="/bookings" element={<Bookings />} />
- 
+          <Route path="/tickets" element={<TicketListPage />} />
+          <Route path="/tickets/new" element={<CreateTicket />} />
+          <Route path="/tickets/:id" element={<TicketDetailPage />} />
           {/* Admin routes (sidebar appears) */}
           <Route path="/admin" element={<AdminHub />} />
           <Route path="/admin/users" element={<AdminUsers />} />

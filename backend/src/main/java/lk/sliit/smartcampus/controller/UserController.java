@@ -3,6 +3,7 @@ package lk.sliit.smartcampus.controller;
 import lk.sliit.smartcampus.dto.UpdateProfileRequest;
 import lk.sliit.smartcampus.dto.UpdateRoleRequest;
 import lk.sliit.smartcampus.dto.UserResponseDTO;
+import lk.sliit.smartcampus.entity.Role;
 import lk.sliit.smartcampus.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +45,12 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UserResponseDTO>> getAllUsers() {
         return ResponseEntity.ok(userService.getAllUsers());
+    }
+
+    @GetMapping("/technicians")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TECHNICIAN')")
+    public ResponseEntity<List<UserResponseDTO>> getTechnicians() {
+        return ResponseEntity.ok(userService.getUsersByRole(Role.TECHNICIAN));
     }
 
     @GetMapping("/{id}")

@@ -4,11 +4,8 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -19,10 +16,8 @@ import lk.sliit.smartcampus.dto.BookingResponseDTO;
 import lk.sliit.smartcampus.dto.CheckInResponseDTO;
 import lk.sliit.smartcampus.dto.CreateBookingRequest;
 import lk.sliit.smartcampus.entity.Booking;
-import lk.sliit.smartcampus.entity.BookingParticipant;
 import lk.sliit.smartcampus.entity.Resource;
 import lk.sliit.smartcampus.entity.User;
-import lk.sliit.smartcampus.repository.BookingParticipantRepository;
 import lk.sliit.smartcampus.repository.BookingRepository;
 import lk.sliit.smartcampus.repository.ResourceRepository;
 import lk.sliit.smartcampus.repository.UserRepository;
@@ -36,7 +31,6 @@ import lombok.RequiredArgsConstructor;
 @Transactional
 public class BookingServiceImpl implements BookingService {
 
-    private final BookingParticipantRepository bookingParticipantRepository;
     private final ResourceRepository resourceRepository;
     private final UserRepository userRepository;
     private final BookingRepository bookingRepository;
@@ -50,12 +44,7 @@ public class BookingServiceImpl implements BookingService {
 
         validateBookingRequest(request, resource);
         validateCreateConflict(request, resource);
-
-        List<Long> cleanParticipantIds = sanitizeParticipantIds(request.getParticipantIds(), bookingOwner.getId());
-        List<User> participants = getUsersByIds(cleanParticipantIds);
-
-        int attendeesCount = 1 + participants.size();
-        validateCapacity(resource, attendeesCount);
+        validateCapacity(resource, request.getAttendeesCount());
 
         Booking booking = Booking.builder()
                 .resource(resource)
@@ -64,21 +53,11 @@ public class BookingServiceImpl implements BookingService {
                 .startTime(request.getStartTime())
                 .endTime(request.getEndTime())
                 .purpose(request.getPurpose())
-                .attendeesCount(attendeesCount)
+                .attendeesCount(request.getAttendeesCount())
                 .status(Booking.BookingStatus.PENDING)
                 .build();
 
         Booking savedBooking = bookingRepository.save(booking);
-
-        List<BookingParticipant> bookingParticipants = participants.stream()
-                .map(user -> BookingParticipant.builder()
-                        .booking(savedBooking)
-                        .user(user)
-                        .build())
-                .toList();
-
-        bookingParticipantRepository.saveAll(bookingParticipants);
-        savedBooking.setParticipants(bookingParticipants);
 
         return mapToResponse(savedBooking);
     }
@@ -292,18 +271,6 @@ public class BookingServiceImpl implements BookingService {
         }
     }
 
-    private List<Long> sanitizeParticipantIds(List<Long> participantIds, Long bookingOwnerId) {
-        if (participantIds == null) {
-            return Collections.emptyList();
-        }
-
-        return participantIds.stream()
-                .filter(Objects::nonNull)
-                .filter(id -> !id.equals(bookingOwnerId))
-                .distinct()
-                .toList();
-    }
-
     private void validateCreateConflict(CreateBookingRequest request, Resource resource) {
         boolean hasConflict = bookingRepository.existsOverlappingBooking(
                 resource.getId(),
@@ -317,20 +284,6 @@ public class BookingServiceImpl implements BookingService {
         if (hasConflict) {
             throw new IllegalStateException("This resource is already booked for the selected time range");
         }
-    }
-
-    private List<User> getUsersByIds(List<Long> ids) {
-        if (ids.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        List<User> users = userRepository.findAllById(ids);
-
-        if (users.size() != ids.size()) {
-            throw new EntityNotFoundException("One or more participant users were not found");
-        }
-
-        return users;
     }
 
     private User getUserByEmail(String email) {
@@ -349,11 +302,6 @@ public class BookingServiceImpl implements BookingService {
     }
 
     private BookingResponseDTO mapToResponse(Booking booking) {
-        List<Long> participantIds = bookingParticipantRepository.findByBookingId(booking.getId())
-                .stream()
-                .map(bp -> bp.getUser().getId())
-                .collect(Collectors.toList());
-
         return BookingResponseDTO.builder()
                 .id(booking.getId())
                 .resourceId(booking.getResource().getId())
@@ -367,9 +315,11 @@ public class BookingServiceImpl implements BookingService {
                 .attendeesCount(booking.getAttendeesCount())
                 .status(booking.getStatus())
                 .adminReason(booking.getAdminReason())
-                .participantIds(participantIds)
                 .createdAt(booking.getCreatedAt())
                 .updatedAt(booking.getUpdatedAt())
+                .checkedIn(booking.getCheckedIn())
+                .checkedInAt(booking.getCheckedInAt())
+                .qrToken(booking.getQrToken())
                 .build();
     }
 }

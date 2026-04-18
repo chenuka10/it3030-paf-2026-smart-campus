@@ -6,6 +6,7 @@ import Layout from "../../components/Layout";
 
 const RESOURCE_TYPES  = ["LECTURE_ROOM", "LAB", "MEETING_ROOM", "EQUIPMENT", "SPORTS", "EVENT_SPACE"];
 const RESOURCE_STATUS = ["ACTIVE", "OUT_OF_SERVICE"];
+const RESOURCE_LIST_PATH = "/admin/resources";
 
 export default function AddResourcePage() {
   const { user } = useAuth();
@@ -53,7 +54,7 @@ export default function AddResourcePage() {
       };
       await api.post("/api/resources", payload);
       setSuccess(true);
-      setTimeout(() => navigate("/resourceslist"), 1000);
+      setTimeout(() => navigate(RESOURCE_LIST_PATH, { replace: true }), 1000);
     } catch (err) {
       setError(err.response?.data?.message || "Failed to add resource");
       setLoading(false);
@@ -87,7 +88,7 @@ export default function AddResourcePage() {
           </div>
           <button
             className="bg-ui-sky/8 border border-ui-sky/20 rounded-[10px] text-ui-sky px-5 py-2.5 text-[13px] font-semibold cursor-pointer transition-all duration-200 hover:bg-ui-sky/15 hover:border-ui-sky/40"
-            onClick={() => navigate("/resourceslist")}
+            onClick={() => navigate(RESOURCE_LIST_PATH)}
           >
             ← Back to Resources
           </button>
@@ -220,7 +221,7 @@ export default function AddResourcePage() {
             <button
               type="button"
               className="bg-transparent border border-ui-sky/20 rounded-lg text-ui-muted px-6 py-2.5 text-[14px] font-semibold cursor-pointer transition-all duration-200 hover:border-ui-sky/40 hover:text-ui-bright"
-              onClick={() => navigate("/resourceslist")}
+              onClick={() => navigate(RESOURCE_LIST_PATH)}
             >
               Cancel
             </button>

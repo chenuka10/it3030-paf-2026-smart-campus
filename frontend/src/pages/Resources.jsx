@@ -13,7 +13,7 @@ const STATUS_STYLES = {
 // ============================================================
 // HELPER FUNCTION: Calculate available slots for a resource TODAY
 // ============================================================
-const calculateAvailableSlots = (resource, bookings = []) => {
+const calculateAvailableSlots = (resource, bookings = [], now = new Date()) => {
   if (resource.status !== 'ACTIVE') return 0;
   
   // Get resource operating hours
@@ -28,7 +28,9 @@ const calculateAvailableSlots = (resource, bookings = []) => {
   const closeMinutes = closeHour * 60 + closeMinute;
   const slotDurationMinutes = maxHours * 60;
   
-  // Generate all possible time slots for today
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  // Generate all possible remaining time slots for today
   const possibleSlots = [];
   let currentStart = openMinutes;
   
@@ -39,13 +41,15 @@ const calculateAvailableSlots = (resource, bookings = []) => {
     const endHour = Math.floor(endTime / 60);
     const endMinute = endTime % 60;
     
-    possibleSlots.push({
-      start: currentStart,
-      end: currentStart + slotDurationMinutes,
-      startTime: `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`,
-      endTime: `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`,
-      isAvailable: true
-    });
+    if (currentStart >= currentMinutes) {
+      possibleSlots.push({
+        start: currentStart,
+        end: currentStart + slotDurationMinutes,
+        startTime: `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`,
+        endTime: `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`,
+        isAvailable: true
+      });
+    }
     
     currentStart += slotDurationMinutes;
   }
@@ -474,6 +478,7 @@ export default function Resources() {
   const [favorites, setFavorites] = useState([]);
   const [viewMode, setViewMode] = useState("grid");
   const [allBookings, setAllBookings] = useState([]);
+  const [currentTime, setCurrentTime] = useState(() => new Date());
 
   useEffect(() => {
     if (!user) {
@@ -481,7 +486,106 @@ export default function Resources() {
       return;
     }
     fetchAllData();
+    fetchFavorites();
   }, [user, navigate]);
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000);
+
+    return () => clearInterval(intervalId);
+  }, []);
+
+  const getCurrentBookingsByResource = (bookings, now = new Date()) => {
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+    const today = now.toISOString().split('T')[0];
+
+    return bookings.reduce((acc, booking) => {
+      const bookingDate = booking.startTime?.split('T')[0];
+      const startTimeStr = booking.startTime?.split('T')[1]?.slice(0, 5);
+      const endTimeStr = booking.endTime?.split('T')[1]?.slice(0, 5);
+
+      if (!startTimeStr || !endTimeStr || bookingDate !== today) {
+        return acc;
+      }
+
+      const startHour = parseInt(startTimeStr.split(':')[0]);
+      const startMinute = parseInt(startTimeStr.split(':')[1]);
+      const endHour = parseInt(endTimeStr.split(':')[0]);
+      const endMinute = parseInt(endTimeStr.split(':')[1]);
+      const start = startHour * 60 + startMinute;
+      const end = endHour * 60 + endMinute;
+
+      if (currentTime >= start && currentTime < end) {
+        if (!acc[booking.resourceId]) {
+          acc[booking.resourceId] = [];
+        }
+        acc[booking.resourceId].push(booking);
+      }
+
+      return acc;
+    }, {});
+  };
+
+  const buildCategories = (resourcesData, bookingsData, now = new Date()) => {
+    const typeMap = new Map();
+
+    resourcesData.forEach(resource => {
+      if (!typeMap.has(resource.type)) {
+        typeMap.set(resource.type, {
+          id: resource.type,
+          title: resource.type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase()),
+          description: `${resource.type.replace(/_/g, ' ')} facilities available on campus`,
+          icon: getIconForType(resource.type),
+          color: getColorForType(resource.type),
+          borderColor: getBorderColorForType(resource.type),
+          image: getImageForType(resource.type),
+          stats: { total: 0, availableSlots: 0, inUse: 0 }
+        });
+      }
+    });
+
+    for (const [type, cat] of typeMap) {
+      const catResources = resourcesData.filter(r => r.type === type);
+      cat.stats.total = catResources.length;
+
+      let totalAvailableSlots = 0;
+      let totalInUse = 0;
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+      for (const resource of catResources) {
+        totalAvailableSlots += calculateAvailableSlots(resource, bookingsData, now);
+
+        const isCurrentlyBooked = bookingsData.some(booking => {
+          if (booking.resourceId !== resource.id) return false;
+          const startTimeStr = booking.startTime?.split('T')[1]?.slice(0, 5);
+          const endTimeStr = booking.endTime?.split('T')[1]?.slice(0, 5);
+
+          if (!startTimeStr || !endTimeStr) return false;
+
+          const startHour = parseInt(startTimeStr.split(':')[0]);
+          const startMinute = parseInt(startTimeStr.split(':')[1]);
+          const endHour = parseInt(endTimeStr.split(':')[0]);
+          const endMinute = parseInt(endTimeStr.split(':')[1]);
+
+          const start = startHour * 60 + startMinute;
+          const end = endHour * 60 + endMinute;
+
+          return currentMinutes >= start && currentMinutes < end;
+        });
+
+        if (isCurrentlyBooked) {
+          totalInUse++;
+        }
+      }
+
+      cat.stats.availableSlots = totalAvailableSlots;
+      cat.stats.inUse = totalInUse;
+    }
+
+    return Array.from(typeMap.values());
+  };
 
   const fetchAllData = async () => {
     setLoading(true);
@@ -494,80 +598,19 @@ export default function Resources() {
       
       // Fetch all bookings for today
       const today = new Date().toISOString().split('T')[0];
+      let bookingsData = [];
       try {
         const bookingsRes = await api.get("/api/bookings", {
           params: { startDate: today, endDate: today }
         });
-        const bookingsData = bookingsRes.data || [];
+        bookingsData = bookingsRes.data || [];
         setAllBookings(bookingsData);
       } catch (err) {
         console.error('Error fetching bookings:', err);
         setAllBookings([]);
       }
       
-      // Group resources by type and calculate stats
-      const typeMap = new Map();
-      
-      resourcesData.forEach(resource => {
-        if (!typeMap.has(resource.type)) {
-          typeMap.set(resource.type, {
-            id: resource.type,
-            title: resource.type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase()),
-            description: `${resource.type.replace(/_/g, ' ')} facilities available on campus`,
-            icon: getIconForType(resource.type),
-            color: getColorForType(resource.type),
-            borderColor: getBorderColorForType(resource.type),
-            image: getImageForType(resource.type),
-            stats: { total: 0, availableSlots: 0, inUse: 0 }
-          });
-        }
-      });
-      
-      // Calculate stats for each category using the actual bookings
-      for (const [type, cat] of typeMap) {
-        const catResources = resourcesData.filter(r => r.type === type);
-        cat.stats.total = catResources.length;
-        
-        let totalAvailableSlots = 0;
-        let totalInUse = 0;
-        
-        for (const resource of catResources) {
-          // Calculate available slots based on actual bookings
-          const availableSlots = calculateAvailableSlots(resource, allBookings);
-          totalAvailableSlots += availableSlots;
-          
-          // Check if resource is currently in use
-          const now = new Date();
-          const currentTime = now.getHours() * 60 + now.getMinutes();
-          
-          const isCurrentlyBooked = allBookings.some(booking => {
-            if (booking.resourceId !== resource.id) return false;
-            const startTimeStr = booking.startTime?.split('T')[1]?.slice(0, 5);
-            const endTimeStr = booking.endTime?.split('T')[1]?.slice(0, 5);
-            
-            if (!startTimeStr || !endTimeStr) return false;
-            
-            const startHour = parseInt(startTimeStr.split(':')[0]);
-            const startMinute = parseInt(startTimeStr.split(':')[1]);
-            const endHour = parseInt(endTimeStr.split(':')[0]);
-            const endMinute = parseInt(endTimeStr.split(':')[1]);
-            
-            const start = startHour * 60 + startMinute;
-            const end = endHour * 60 + endMinute;
-            
-            return currentTime >= start && currentTime < end;
-          });
-          
-          if (isCurrentlyBooked) {
-            totalInUse++;
-          }
-        }
-        
-        cat.stats.availableSlots = totalAvailableSlots;
-        cat.stats.inUse = totalInUse;
-      }
-      
-      setCategories(Array.from(typeMap.values()));
+      setCategories(buildCategories(resourcesData, bookingsData, currentTime));
     } catch (err) {
       console.error('Error fetching data:', err);
       setError('Failed to load resources. Please try again later.');
@@ -666,6 +709,26 @@ export default function Resources() {
     return filtered;
   };
 
+  useEffect(() => {
+    if (resources.length === 0) {
+      setCategories([]);
+      return;
+    }
+
+    setCategories(buildCategories(resources, allBookings, currentTime));
+  }, [resources, allBookings, currentTime]);
+
+  useEffect(() => {
+    if (!selectedCategory) return;
+
+    const updatedCategory = categories.find(category => category.id === selectedCategory.id);
+    if (updatedCategory) {
+      setSelectedCategory(updatedCategory);
+    }
+  }, [categories, selectedCategory]);
+
+  const currentBookings = getCurrentBookingsByResource(allBookings, currentTime);
+
   const CategoryCard = ({ category, onClick }) => (
     <div 
       onClick={onClick}
@@ -699,7 +762,7 @@ export default function Resources() {
         <div className="flex items-center justify-between">
           <div className="flex gap-2">
             <span className="px-2 py-1 bg-ui-green/20 rounded-lg text-xs text-ui-green">
-              📅 {category.stats.availableSlots} Slots Today
+              📅 {category.stats.availableSlots} Remaining Today
             </span>
             <span className="px-2 py-1 bg-ui-warn/20 rounded-lg text-xs text-ui-warn">
               👥 {category.stats.inUse} In Use
@@ -721,7 +784,8 @@ export default function Resources() {
 
   const ResourceDetailCard = ({ resource, onViewDetails }) => {
     const isFavorite = favorites.includes(resource.id);
-    const isInUse = currentBookings[resource.id] && currentBookings[resource.id].length > 0;
+    const isInUse = Boolean(currentBookings[resource.id]?.length);
+    const availableSlots = calculateAvailableSlots(resource, allBookings, currentTime);
     const statusStyle = STATUS_STYLES[resource.status] || STATUS_STYLES.ACTIVE;
     
     return (
@@ -779,7 +843,7 @@ export default function Resources() {
             </div>
             <div className="flex items-center gap-2 text-sm text-green-400">
               <span>📅</span>
-              <span>{availableSlots} slots available today</span>
+              <span>{availableSlots} slots remaining today</span>
             </div>
           </div>
           
@@ -906,7 +970,7 @@ export default function Resources() {
             {error ? (
               <div className="text-center py-16">
                 <div className="text-ui-danger mb-4">⚠️ {error}</div>
-                <button onClick={fetchResources} className="px-4 py-2 bg-ui-sky/10 text-ui-sky rounded-lg hover:bg-ui-sky/20">Retry</button>
+                <button onClick={fetchAllData} className="px-4 py-2 bg-ui-sky/10 text-ui-sky rounded-lg hover:bg-ui-sky/20">Retry</button>
               </div>
             ) : categories.length === 0 ? (
               <div className="text-center py-16">
@@ -966,7 +1030,7 @@ export default function Resources() {
                 Total: {selectedCategory.stats.total}
               </div>
               <div className="px-3 py-1 rounded-lg bg-ui-green/10 text-ui-green text-sm">
-                📅 {selectedCategory.stats.availableSlots} Available Slots Today
+                📅 {selectedCategory.stats.availableSlots} Remaining Slots Today
               </div>
               <div className="px-3 py-1 rounded-lg bg-ui-warn/10 text-ui-warn text-sm">
                 👥 {selectedCategory.stats.inUse} Currently In Use
@@ -1079,7 +1143,7 @@ export default function Resources() {
           ) : (
             <div className="space-y-3">
               {categoryResources.map((resource) => {
-                const isInUse = currentBookings[resource.id] && currentBookings[resource.id].length > 0;
+                const isInUse = Boolean(currentBookings[resource.id]?.length);
                 const statusStyle = STATUS_STYLES[resource.status] || STATUS_STYLES.ACTIVE;
                 return (
                   <div 

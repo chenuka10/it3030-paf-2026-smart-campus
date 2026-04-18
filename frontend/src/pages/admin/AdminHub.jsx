@@ -38,6 +38,10 @@ export default function AdminHub() {
     api.get('/api/users').then(({ data }) => {
       setStats(s => ({ ...s, users: data.length }));
     }).catch(() => {});
+
+    api.get('/api/tickets/analytics/resources').then(({ data }) => {
+      setStats(s => ({ ...s, reports: data.summary?.affectedResources ?? 0 }));
+    }).catch(() => {});
   }, []);
 
   return (

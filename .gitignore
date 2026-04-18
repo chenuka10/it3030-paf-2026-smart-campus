@@ -50,3 +50,6 @@ build/
 **/.env.local
 backend/src/main/resources/application.yml
 backend/src/main/resources/application.yml
+
+#ingnore uploaded files
+**/uploads/**

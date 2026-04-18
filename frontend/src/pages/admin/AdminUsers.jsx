@@ -36,6 +36,17 @@ export default function AdminUsers() {
   const [deleting, setDeleting] = useState(null);
   const [roleConfirm, setRoleConfirm] = useState(null);
   const [editErrors, setEditErrors] = useState({});
+  const [showTechModal, setShowTechModal] = useState(false);
+  const [creatingTech, setCreatingTech] = useState(false);
+  const [techForm, setTechForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    department: '',
+    bio: '',
+    imageUrl: '',
+  });
+  const [techErrors, setTechErrors] = useState({});
 
   // ── Toast helpers ────────────────────────────────────────────────────────
 
@@ -120,6 +131,62 @@ export default function AdminUsers() {
     u.email?.toLowerCase().includes(search.toLowerCase()) ||
     u.department?.toLowerCase().includes(search.toLowerCase())
   );
+
+  const validateTechnicianForm = (form) => ({
+    name: validateName(form.name) || '',
+    email: validateEmail(form.email) || '',
+    phone: form.phone?.trim() ? (validatePhone(form.phone) || '') : '',
+    department: form.department?.trim() ? (validateDepartment(form.department) || '') : '',
+  });
+
+  const handleCreateTechnician = async () => {
+    console.log("BUTTON CLICKED");
+
+    const errs = validateTechnicianForm(techForm);
+    console.log("Validation Errors:", errs);
+    setTechErrors(errs);
+
+    const hasErrors = Object.values(errs).some(err => err);
+    if (hasErrors) {
+      addToast("Please fix the form errors before submitting", "error");
+      return;
+    }
+
+    setCreatingTech(true);
+
+    try {
+      const payload = {
+        name: techForm.name.trim(),
+        email: techForm.email.trim().toLowerCase(),
+        phone: techForm.phone?.trim() || null,
+        department: techForm.department?.trim() || null,
+        bio: techForm.bio?.trim() || null,
+        imageUrl: techForm.imageUrl?.trim() || null,
+      };
+
+      console.log("Sending Request:", payload);
+
+      const { data } = await api.post('/api/users/technicians', payload);
+
+      setUsers(prev => [data, ...prev]);
+      addToast(`Technician ${data.name} added successfully`);
+      setShowTechModal(false);
+      setTechErrors({});
+      setTechForm({
+        name: '',
+        email: '',
+        phone: '',
+        department: '',
+        bio: '',
+        imageUrl: '',
+      });
+    } catch (err) {
+      console.error("Create technician failed:", err);
+      addToast(err.response?.data?.message || 'Failed to add technician', 'error');
+    } finally {
+      setCreatingTech(false);
+    }
+  };
 
   const stats = [
     { label: 'Total', value: users.length, color: 'text-ui-sky' },
@@ -239,11 +306,134 @@ export default function AdminUsers() {
             <input 
               className="w-full bg-ui-base border border-ui-sky/15 rounded-xl py-2.5 pl-10 pr-4 text-ui-bright text-sm outline-none focus:border-ui-sky/40 transition-all"
               placeholder="Search name, email, department…"
-              value={search} onChange={e => setSearch(e.target.value)} 
+              value={search}
+              onChange={e => setSearch(e.target.value)} 
             />
           </div>
-          <button className="bg-ui-base border border-ui-sky/20 rounded-xl px-4 py-2.5 text-ui-muted hover:text-ui-sky transition-colors" onClick={() => fetchUsers()} title="Refresh">↺</button>
+
+          <button
+            className="bg-ui-sky/10 border border-ui-sky/20 rounded-xl px-4 py-2.5 text-ui-sky text-sm font-bold hover:bg-ui-sky/15 transition-colors"
+            onClick={() => setShowTechModal(true)}
+          >
+            + Add Technician
+          </button>
+
+          <button
+            className="bg-ui-base border border-ui-sky/20 rounded-xl px-4 py-2.5 text-ui-muted hover:text-ui-sky transition-colors"
+            onClick={() => fetchUsers()}
+            title="Refresh"
+          >
+            ↺
+          </button>
         </div>
+
+        {showTechModal && (
+          <Modal onClose={() => {
+            if (!creatingTech) {
+              setShowTechModal(false);
+              setTechErrors({});
+            }
+          }}>
+            <div className="font-sans text-ui-bright animate-fade-in">
+              <div className="flex items-center justify-between mb-6">
+                <span className="text-[10px] font-bold tracking-widest text-ui-dim font-mono uppercase">
+                  ADD TECHNICIAN
+                </span>
+                <button
+                  className="bg-transparent border-none text-ui-dim text-lg hover:text-ui-bright transition-colors"
+                  onClick={() => {
+                    if (!creatingTech) {
+                      setShowTechModal(false);
+                      setTechErrors({});
+                    }
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[11px] text-ui-dim font-mono uppercase mb-1.5">Name</label>
+                  <input
+                    className="w-full bg-ui-base border border-ui-sky/15 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-ui-sky/40"
+                    value={techForm.name}
+                    onChange={e => setTechForm(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Technician full name"
+                  />
+                  {techErrors.name && <div className="text-ui-danger text-[12px] mt-1">{techErrors.name}</div>}
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-ui-dim font-mono uppercase mb-1.5">Email</label>
+                  <input
+                    className="w-full bg-ui-base border border-ui-sky/15 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-ui-sky/40"
+                    value={techForm.email}
+                    onChange={e => setTechForm(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="Email"
+                  />
+                  {techErrors.email && <div className="text-ui-danger text-[12px] mt-1">{techErrors.email}</div>}
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-ui-dim font-mono uppercase mb-1.5">Phone</label>
+                  <input
+                    className="w-full bg-ui-base border border-ui-sky/15 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-ui-sky/40"
+                    value={techForm.phone}
+                    onChange={e => setTechForm(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="Phone number"
+                  />
+                  {techErrors.phone && <div className="text-ui-danger text-[12px] mt-1">{techErrors.phone}</div>}
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-ui-dim font-mono uppercase mb-1.5">Department</label>
+                  <input
+                    className="w-full bg-ui-base border border-ui-sky/15 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-ui-sky/40"
+                    value={techForm.department}
+                    onChange={e => setTechForm(prev => ({ ...prev, department: e.target.value }))}
+                    placeholder="Department"
+                  />
+                  {techErrors.department && <div className="text-ui-danger text-[12px] mt-1">{techErrors.department}</div>}
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-ui-dim font-mono uppercase mb-1.5">Bio</label>
+                  <textarea
+                    className="w-full bg-ui-base border border-ui-sky/15 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-ui-sky/40 min-h-[90px]"
+                    value={techForm.bio}
+                    onChange={e => setTechForm(prev => ({ ...prev, bio: e.target.value }))}
+                    placeholder="Short bio"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end mt-6">
+                <button
+                  className="bg-transparent border border-ui-sky/20 rounded-xl text-ui-muted px-5 py-2.5 text-sm font-semibold hover:bg-ui-sky/5 transition-colors"
+                  onClick={() => {
+                    if (!creatingTech) {
+                      setShowTechModal(false);
+                      setTechErrors({});
+                    }
+                  }}
+                  disabled={creatingTech}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  className="bg-ui-sky border-none rounded-xl text-ui-base px-5 py-2.5 text-sm font-bold disabled:opacity-70"
+                  onClick={handleCreateTechnician}
+                  disabled={creatingTech}
+                >
+                  {creatingTech ? 'Adding…' : 'Add Technician'}
+                </button>
+              </div>
+            </div>
+          </Modal>
+        )}
+
 
         {loading ? <Spinner /> : (
           <div className="animate-fade-in">

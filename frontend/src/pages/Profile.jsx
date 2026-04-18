@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import Layout from '../components/Layout';
+import { validateProfileForm } from '../utils/validation';
 
 const ROLE_COLORS = {
   ADMIN:      { bg: 'rgba(224,122,95,0.12)', text: 'var(--color-ui-danger)', border: 'rgba(224,122,95,0.25)' },
@@ -41,18 +42,15 @@ export default function Profile() {
     setEditing(true);
   };
 
-  const validate = () => {
-    const e = {};
-    if (!form.name?.trim())       e.name  = 'Name is required';
-    else if (form.name.length < 2) e.name  = 'Name must be at least 2 characters';
-    if (form.phone?.length > 20)  e.phone = 'Phone number too long';
-    if (form.bio?.length > 300)   e.bio   = 'Bio must be under 300 characters';
-    return e;
-  };
+  
 
   const handleSave = async () => {
-    const e = validate();
-    if (Object.keys(e).length) { setErrors(e); return; }
+    const e = validateProfileForm(form);
+    if (Object.keys(e).length) {
+      setErrors(e);
+      return;
+    }
+
     setSaving(true);
     try {
       await api.put('/api/users/me', form);
@@ -162,10 +160,15 @@ export default function Profile() {
 
               <FF label="Phone Number" error={errors.phone}>
                 <input
+                  type="tel"
+                  inputMode="numeric"
                   className={`w-full bg-ui-base border rounded-[10px] px-[14px] py-[11px] text-ui-bright text-[14px] focus:outline-none focus:border-ui-sky transition-colors
                     ${errors.phone ? 'border-ui-danger' : 'border-ui-sky/20'}`}
                   value={form.phone}
-                  onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                  onChange={e => {
+                    const cleaned = e.target.value.replace(/[^0-9+\-\s().]/g, '');
+                    setForm(f => ({ ...f, phone: cleaned }));
+                  }}
                 />
               </FF>
 

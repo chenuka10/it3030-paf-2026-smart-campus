@@ -107,22 +107,26 @@ const TicketForm = ({ onSuccess, onCancel }) => {
   };
 
   const handleFileChange = (e) => {
-    const files = Array.from(e.target.files);
+    const newFiles = Array.from(e.target.files || []);
+    e.target.value = '';
 
-    if (files.length > 3) {
-      setError('Maximum 3 attachments allowed');
-      return;
-    }
+    if (newFiles.length === 0) return;
 
-    const oversizedFiles = files.filter((file) => file.size > 10 * 1024 * 1024);
+    const oversizedFiles = newFiles.filter((file) => file.size > 10 * 1024 * 1024);
     if (oversizedFiles.length > 0) {
       setError('Each file must be less than 10MB');
       return;
     }
 
-    previewUrls.forEach((url) => URL.revokeObjectURL(url));
-    setAttachments(files);
-    setPreviewUrls(files.map((file) => URL.createObjectURL(file)));
+    const merged = [...attachments, ...newFiles];
+    if (merged.length > 3) {
+      setError(`You can attach up to 3 images (${attachments.length} already added).`);
+      return;
+    }
+
+    const newPreviewUrls = newFiles.map((file) => URL.createObjectURL(file));
+    setAttachments(merged);
+    setPreviewUrls((prev) => [...prev, ...newPreviewUrls]);
     setError('');
   };
 
@@ -432,7 +436,7 @@ const TicketForm = ({ onSuccess, onCancel }) => {
                 <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-dashed border-ui-sky/20 bg-ui-sky/4 px-4 py-4 transition hover:border-ui-sky/35 hover:bg-ui-sky/8">
                   <div>
                     <div className="text-sm font-semibold text-ui-bright">Upload images</div>
-                    <div className="mt-1 text-xs text-ui-dim">Up to 3 files, 10MB each</div>
+                    <div className="mt-1 text-xs text-ui-dim">Up to 3 files (add several at once or browse again), 10MB each</div>
                   </div>
                   <div className="rounded-xl border border-ui-sky/14 bg-ui-base px-3 py-2 text-xs font-semibold text-ui-sky">
                     Browse
@@ -450,9 +454,9 @@ const TicketForm = ({ onSuccess, onCancel }) => {
                 </p>
 
                 {previewUrls.length > 0 && (
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
                     {previewUrls.map((url, index) => (
-                      <div key={index} className="overflow-hidden rounded-2xl border border-ui-sky/12 bg-ui-base">
+                      <div key={url} className="overflow-hidden rounded-2xl border border-ui-sky/12 bg-ui-base">
                         <div className="relative">
                           <img
                             src={url}

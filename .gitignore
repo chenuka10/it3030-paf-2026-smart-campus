@@ -53,3 +53,4 @@ backend/src/main/resources/application.yml
 
 #ingnore uploaded files
 **/uploads/**
+backend/src/main/resources/application.yml

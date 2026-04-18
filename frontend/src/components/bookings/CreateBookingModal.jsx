@@ -22,6 +22,7 @@ export default function CreateBookingModal({ onClose, onSuccess }) {
     bookingDate: '',
     startTime: '',
     endTime: '',
+    attendeesCount: '',
     purpose: '',
   });
 
@@ -66,6 +67,10 @@ export default function CreateBookingModal({ onClose, onSuccess }) {
       (resource) => String(resource.id) === String(form.resourceId)
     );
   }, [resources, form.resourceId]);
+
+  const isEquipmentType = useMemo(() => {
+    return String(form.resourceType || '').toUpperCase() === 'EQUIPMENT';
+  }, [form.resourceType]);
 
   const today = useMemo(() => new Date(), []);
   const minDate = useMemo(() => today.toISOString().split('T')[0], [today]);
@@ -267,6 +272,21 @@ export default function CreateBookingModal({ onClose, onSuccess }) {
     if (!form.endTime) nextErrors.endTime = 'End time is required';
     if (!form.purpose.trim()) nextErrors.purpose = 'Purpose is required';
 
+    if (!isEquipmentType) {
+      if (!form.attendeesCount) {
+        nextErrors.attendeesCount = 'Attendee count is required';
+      } else if (Number(form.attendeesCount) < 1) {
+        nextErrors.attendeesCount = 'Attendee count must be at least 1';
+      }
+
+      if (
+        selectedResource?.capacity != null &&
+        Number(form.attendeesCount) > Number(selectedResource.capacity)
+      ) {
+        nextErrors.attendeesCount = 'Attendee count exceeds resource capacity';
+      }
+    }
+
     const selectedDate = form.bookingDate
       ? new Date(`${form.bookingDate}T00:00:00`)
       : null;
@@ -327,6 +347,8 @@ export default function CreateBookingModal({ onClose, onSuccess }) {
   };
 
   const handleTypeChange = (value) => {
+    const nextIsEquipment = String(value || '').toUpperCase() === 'EQUIPMENT';
+
     setForm((prev) => ({
       ...prev,
       resourceType: value,
@@ -334,6 +356,7 @@ export default function CreateBookingModal({ onClose, onSuccess }) {
       bookingDate: '',
       startTime: '',
       endTime: '',
+      attendeesCount: nextIsEquipment ? '0' : '',
     }));
 
     setAvailability([]);
@@ -346,6 +369,7 @@ export default function CreateBookingModal({ onClose, onSuccess }) {
       bookingDate: '',
       startTime: '',
       endTime: '',
+      attendeesCount: '',
     }));
 
     setFormError('');
@@ -358,6 +382,7 @@ export default function CreateBookingModal({ onClose, onSuccess }) {
       bookingDate: '',
       startTime: '',
       endTime: '',
+      attendeesCount: isEquipmentType ? '0' : prev.attendeesCount,
     }));
 
     setAvailability([]);
@@ -369,6 +394,7 @@ export default function CreateBookingModal({ onClose, onSuccess }) {
       bookingDate: '',
       startTime: '',
       endTime: '',
+      attendeesCount: '',
     }));
 
     setFormError('');
@@ -401,7 +427,7 @@ export default function CreateBookingModal({ onClose, onSuccess }) {
         startTime: toBackendTime(form.startTime),
         endTime: toBackendTime(form.endTime),
         purpose: form.purpose.trim(),
-        participantIds: [],
+        attendeesCount: isEquipmentType ? 0 : Number(form.attendeesCount),
       };
 
       await createBooking(payload);
@@ -685,6 +711,28 @@ export default function CreateBookingModal({ onClose, onSuccess }) {
         )}
 
         <div className="mt-6">
+          {!isEquipmentType && (
+            <FormField label="Attendee Count" required error={errors.attendeesCount}>
+              <input
+                type="number"
+                min="1"
+                className={`w-full bg-ui-base border rounded-[10px] px-[14px] py-[11px] text-ui-bright text-[14px] focus:outline-none focus:border-ui-sky transition-colors ${
+                  errors.attendeesCount ? 'border-ui-danger' : 'border-ui-sky/20'
+                }`}
+                value={form.attendeesCount}
+                onChange={(e) => handleChange('attendeesCount', e.target.value)}
+                placeholder="Enter number of attendees"
+                disabled={submitting}
+              />
+            </FormField>
+          )}
+
+          {isEquipmentType && (
+            <div className="mb-4 rounded-[12px] border border-ui-sky/15 bg-ui-sky/4 px-4 py-3 text-[13px] text-ui-muted">
+              This is an equipment booking, so attendee count is automatically set to 0.
+            </div>
+          )}
+
           <FormField
             label="Purpose"
             required

@@ -4,8 +4,12 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -18,6 +22,7 @@ import jakarta.persistence.EntityNotFoundException;
 import lk.sliit.smartcampus.dto.BookingResponseDTO;
 import lk.sliit.smartcampus.dto.CheckInResponseDTO;
 import lk.sliit.smartcampus.dto.CreateBookingRequest;
+import lk.sliit.smartcampus.dto.ResourceUtilizationAnalyticsDTO;
 import lk.sliit.smartcampus.entity.Booking;
 import lk.sliit.smartcampus.entity.BookingParticipant;
 import lk.sliit.smartcampus.entity.Resource;
@@ -203,6 +208,104 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public ResourceUtilizationAnalyticsDTO getResourceUtilizationAnalytics(int days) {
+        int safeDays = Math.max(1, Math.min(days, 365));
+        LocalDate endDate = LocalDate.now();
+        LocalDate startDate = endDate.minusDays(safeDays - 1L);
+
+        List<Resource> allResources = resourceRepository.findAll();
+        List<Resource> activeResources = allResources.stream()
+                .filter(resource -> resource.getStatus() == Resource.ResourceStatus.ACTIVE)
+                .toList();
+        Map<Long, Resource> resourceById = allResources.stream()
+                .collect(Collectors.toMap(Resource::getId, resource -> resource));
+
+        List<Booking> bookingsInRange = bookingRepository.findAll().stream()
+                .filter(booking -> !booking.getBookingDate().isBefore(startDate) && !booking.getBookingDate().isAfter(endDate))
+                .toList();
+
+        List<Booking> approvedBookings = bookingsInRange.stream()
+                .filter(booking -> booking.getStatus() == Booking.BookingStatus.APPROVED)
+                .toList();
+
+        double totalBookedHours = roundHours(approvedBookings.stream()
+                .mapToDouble(this::getBookingDurationHours)
+                .sum());
+
+        double totalBookableHours = activeResources.stream()
+                .mapToDouble(resource -> getResourceBookableHours(resource) * safeDays)
+                .sum();
+
+        Map<Long, List<Booking>> bookingsByResource = bookingsInRange.stream()
+                .collect(Collectors.groupingBy(booking -> booking.getResource().getId()));
+
+        List<ResourceUtilizationAnalyticsDTO.ResourceUtilization> topResources = bookingsByResource.entrySet().stream()
+                .map(entry -> buildResourceUtilization(resourceById.get(entry.getKey()), entry.getValue(), safeDays))
+                .filter(Objects::nonNull)
+                .sorted(Comparator.comparingDouble(ResourceUtilizationAnalyticsDTO.ResourceUtilization::getBookedHours).reversed()
+                        .thenComparingLong(ResourceUtilizationAnalyticsDTO.ResourceUtilization::getBookingCount).reversed())
+                .limit(6)
+                .toList();
+
+        List<ResourceUtilizationAnalyticsDTO.ResourceUtilization> underutilizedResources = activeResources.stream()
+                .map(resource -> buildResourceUtilization(
+                        resource,
+                        bookingsByResource.getOrDefault(resource.getId(), Collections.emptyList()),
+                        safeDays))
+                .filter(Objects::nonNull)
+                .sorted(Comparator.comparingDouble(ResourceUtilizationAnalyticsDTO.ResourceUtilization::getUtilizationRate)
+                        .thenComparingLong(ResourceUtilizationAnalyticsDTO.ResourceUtilization::getBookingCount)
+                        .thenComparing(ResourceUtilizationAnalyticsDTO.ResourceUtilization::getResourceName))
+                .limit(6)
+                .toList();
+
+        List<ResourceUtilizationAnalyticsDTO.TypeUtilization> typeBreakdown = allResources.stream()
+                .collect(Collectors.groupingBy(resource -> resource.getType().name()))
+                .entrySet().stream()
+                .map(entry -> buildTypeUtilization(entry.getKey(), entry.getValue(), approvedBookings, safeDays))
+                .sorted(Comparator.comparingDouble(ResourceUtilizationAnalyticsDTO.TypeUtilization::getBookedHours).reversed())
+                .toList();
+
+        List<ResourceUtilizationAnalyticsDTO.StatusBreakdown> statusBreakdown = bookingsInRange.stream()
+                .collect(Collectors.groupingBy(booking -> booking.getStatus().name(), Collectors.counting()))
+                .entrySet().stream()
+                .map(entry -> new ResourceUtilizationAnalyticsDTO.StatusBreakdown(entry.getKey(), entry.getValue()))
+                .sorted(Comparator.comparingLong(ResourceUtilizationAnalyticsDTO.StatusBreakdown::getBookingCount).reversed())
+                .toList();
+
+        List<ResourceUtilizationAnalyticsDTO.HourlyDistribution> hourlyDistribution = buildHourlyDistribution(approvedBookings);
+        List<ResourceUtilizationAnalyticsDTO.DailyTrend> dailyTrend = buildDailyTrend(startDate, endDate, bookingsInRange);
+
+        long totalBookings = bookingsInRange.size();
+        long approvedCount = approvedBookings.size();
+        long pendingCount = bookingsInRange.stream()
+                .filter(booking -> booking.getStatus() == Booking.BookingStatus.PENDING)
+                .count();
+        long resourcesUsed = approvedBookings.stream()
+                .map(booking -> booking.getResource().getId())
+                .distinct()
+                .count();
+
+        return new ResourceUtilizationAnalyticsDTO(
+                new ResourceUtilizationAnalyticsDTO.Summary(
+                        totalBookings,
+                        approvedCount,
+                        pendingCount,
+                        calculatePercentage(approvedCount, totalBookings),
+                        totalBookedHours,
+                        calculatePercentage(totalBookedHours, totalBookableHours),
+                        activeResources.size(),
+                        resourcesUsed),
+                topResources,
+                underutilizedResources,
+                typeBreakdown,
+                statusBreakdown,
+                hourlyDistribution,
+                dailyTrend);
+    }
+
+    @Override
     public CheckInResponseDTO checkIn(String qrToken) {
         Booking booking = bookingRepository.findByQrToken(qrToken)
                 .orElseThrow(() -> new EntityNotFoundException("Invalid QR code"));
@@ -371,5 +474,163 @@ public class BookingServiceImpl implements BookingService {
                 .createdAt(booking.getCreatedAt())
                 .updatedAt(booking.getUpdatedAt())
                 .build();
+    }
+
+    private ResourceUtilizationAnalyticsDTO.ResourceUtilization buildResourceUtilization(
+            Resource resource,
+            List<Booking> bookings,
+            int days) {
+        if (resource == null) {
+            return null;
+        }
+
+        List<Booking> approvedBookings = bookings.stream()
+                .filter(booking -> booking.getStatus() == Booking.BookingStatus.APPROVED)
+                .toList();
+
+        long bookingCount = bookings.size();
+        long approvedCount = approvedBookings.size();
+        long pendingCount = bookings.stream().filter(booking -> booking.getStatus() == Booking.BookingStatus.PENDING).count();
+        long cancelledCount = bookings.stream()
+                .filter(booking -> booking.getStatus() == Booking.BookingStatus.CANCELLED || booking.getStatus() == Booking.BookingStatus.REJECTED)
+                .count();
+
+        double bookedHours = roundHours(approvedBookings.stream()
+                .mapToDouble(this::getBookingDurationHours)
+                .sum());
+
+        double resourceBookableHours = getResourceBookableHours(resource) * days;
+        double utilizationRate = calculatePercentage(bookedHours, resourceBookableHours);
+
+        Map<Integer, Long> hourlyCounts = approvedBookings.stream()
+                .collect(Collectors.groupingBy(booking -> booking.getStartTime().getHour(), Collectors.counting()));
+
+        String peakHourLabel = hourlyCounts.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .map(entry -> formatHourLabel(entry.getKey()))
+                .orElse("No peak yet");
+
+        String lastBookedAt = bookings.stream()
+                .max(Comparator.comparing(this::toBookingDateTime))
+                .map(booking -> toBookingDateTime(booking).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                .orElse(null);
+
+        return new ResourceUtilizationAnalyticsDTO.ResourceUtilization(
+                resource.getId(),
+                resource.getName(),
+                resource.getType().name(),
+                resource.getLocation(),
+                resource.getStatus().name(),
+                bookingCount,
+                approvedCount,
+                pendingCount,
+                cancelledCount,
+                bookedHours,
+                utilizationRate,
+                peakHourLabel,
+                lastBookedAt);
+    }
+
+    private ResourceUtilizationAnalyticsDTO.TypeUtilization buildTypeUtilization(
+            String resourceType,
+            List<Resource> resources,
+            List<Booking> approvedBookings,
+            int days) {
+        List<Long> resourceIds = resources.stream().map(Resource::getId).toList();
+
+        long bookingCount = approvedBookings.stream()
+                .filter(booking -> resourceIds.contains(booking.getResource().getId()))
+                .count();
+
+        double bookedHours = roundHours(approvedBookings.stream()
+                .filter(booking -> resourceIds.contains(booking.getResource().getId()))
+                .mapToDouble(this::getBookingDurationHours)
+                .sum());
+
+        double totalBookableHours = resources.stream()
+                .filter(resource -> resource.getStatus() == Resource.ResourceStatus.ACTIVE)
+                .mapToDouble(resource -> getResourceBookableHours(resource) * days)
+                .sum();
+
+        return new ResourceUtilizationAnalyticsDTO.TypeUtilization(
+                resourceType,
+                resources.size(),
+                bookingCount,
+                bookedHours,
+                calculatePercentage(bookedHours, totalBookableHours));
+    }
+
+    private List<ResourceUtilizationAnalyticsDTO.HourlyDistribution> buildHourlyDistribution(List<Booking> approvedBookings) {
+        Map<Integer, Long> countsByHour = new LinkedHashMap<>();
+        for (int hour = 6; hour <= 21; hour++) {
+            countsByHour.put(hour, 0L);
+        }
+
+        approvedBookings.forEach(booking -> countsByHour.compute(
+                booking.getStartTime().getHour(),
+                (hour, count) -> (count == null ? 0L : count) + 1));
+
+        return countsByHour.entrySet().stream()
+                .map(entry -> new ResourceUtilizationAnalyticsDTO.HourlyDistribution(
+                        formatHourLabel(entry.getKey()),
+                        entry.getValue()))
+                .toList();
+    }
+
+    private List<ResourceUtilizationAnalyticsDTO.DailyTrend> buildDailyTrend(
+            LocalDate startDate,
+            LocalDate endDate,
+            List<Booking> bookingsInRange) {
+        Map<LocalDate, List<Booking>> bookingsByDate = bookingsInRange.stream()
+                .collect(Collectors.groupingBy(Booking::getBookingDate));
+
+        return startDate.datesUntil(endDate.plusDays(1))
+                .map(date -> {
+                    List<Booking> dayBookings = bookingsByDate.getOrDefault(date, Collections.emptyList());
+                    List<Booking> approvedDayBookings = dayBookings.stream()
+                            .filter(booking -> booking.getStatus() == Booking.BookingStatus.APPROVED)
+                            .toList();
+
+                    return new ResourceUtilizationAnalyticsDTO.DailyTrend(
+                            date.toString(),
+                            dayBookings.size(),
+                            approvedDayBookings.size(),
+                            roundHours(approvedDayBookings.stream()
+                                    .mapToDouble(this::getBookingDurationHours)
+                                    .sum()));
+                })
+                .toList();
+    }
+
+    private double getBookingDurationHours(Booking booking) {
+        return Duration.between(booking.getStartTime(), booking.getEndTime()).toMinutes() / 60.0;
+    }
+
+    private double getResourceBookableHours(Resource resource) {
+        if (resource.getAvailableFrom() == null || resource.getAvailableTo() == null) {
+            return 0;
+        }
+
+        return Math.max(Duration.between(resource.getAvailableFrom(), resource.getAvailableTo()).toMinutes(), 0) / 60.0;
+    }
+
+    private double calculatePercentage(double numerator, double denominator) {
+        if (denominator <= 0) {
+            return 0;
+        }
+        return roundHours((numerator / denominator) * 100.0);
+    }
+
+    private double roundHours(double value) {
+        return Math.round(value * 10.0) / 10.0;
+    }
+
+    private LocalDateTime toBookingDateTime(Booking booking) {
+        return LocalDateTime.of(booking.getBookingDate(), booking.getStartTime());
+    }
+
+    private String formatHourLabel(int hour) {
+        LocalTime time = LocalTime.of(hour % 24, 0);
+        return time.format(DateTimeFormatter.ofPattern("ha")).toLowerCase();
     }
 }

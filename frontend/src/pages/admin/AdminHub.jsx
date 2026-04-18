@@ -28,6 +28,12 @@ const SECTIONS = [
     icon: '◈', path: '/admin/reports',
     stat: 'reports', statLabel: 'This Month',
   },
+  {
+    label: 'Resource Intelligence',
+    desc:  'Booking utilization, demand peaks, and underused assets',
+    icon: '◍', path: '/admin/reports/resource-utilization',
+    stat: 'resourceIntel', statLabel: 'Bookings (30d)',
+  },
 ];
 
 export default function AdminHub() {
@@ -41,6 +47,10 @@ export default function AdminHub() {
 
     api.get('/api/tickets/analytics/resources').then(({ data }) => {
       setStats(s => ({ ...s, reports: data.summary?.affectedResources ?? 0 }));
+    }).catch(() => {});
+
+    api.get('/api/bookings/analytics/resources', { params: { days: 30 } }).then(({ data }) => {
+      setStats(s => ({ ...s, resourceIntel: data.summary?.totalBookings ?? 0 }));
     }).catch(() => {});
   }, []);
 

@@ -18,6 +18,7 @@ import AdminHub from './pages/admin/AdminHub';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminNotifications from './pages/admin/AdminNotifications';
 import AdminReports from './pages/admin/AdminReports';
+import ResourceUtilizationDashboard from './pages/admin/ResourceUtilizationDashboard';
 import ResourceListPage from './pages/admin/ResourceListPage';
 import AddResourcePage from './pages/admin/AddResourcePage';
 import EditResourcePage from './pages/admin/EditResourcePage';
@@ -28,7 +29,12 @@ import RoleRedirect from './routes/RoleRedirect';
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <BrowserRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
         <Routes>
           {/* Public */}
           <Route path="/login" element={<Login />} />
@@ -52,6 +58,7 @@ function App() {
           <Route path="/admin/resources/edit/:id" element={<EditResourcePage />} />
           <Route path="/admin/notifications" element={<AdminNotifications />} />
           <Route path="/admin/reports" element={<AdminReports />} />
+          <Route path="/admin/reports/resource-utilization" element={<ResourceUtilizationDashboard />} />
 
           {/* Catch all */}
           <Route path="*" element={<Navigate to="/" replace />} />

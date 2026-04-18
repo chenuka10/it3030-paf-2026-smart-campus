@@ -13,27 +13,37 @@ export default function Layout({ children, adminOnly = false }) {
 
   useEffect(() => {
     if (loading) return;
-    if (!user) { navigate('/login'); return; }
-    if (adminOnly && user.role !== 'ADMIN') { navigate('/home'); }
-  }, [user, loading, adminOnly]);
+
+    if (!user) {
+      navigate('/login', { replace: true });
+      return;
+    }
+
+    if (adminOnly && user.role !== 'ADMIN') {
+      navigate('/home', { replace: true });
+    }
+  }, [user, loading, adminOnly, navigate]);
 
   if (loading) return <Spinner />;
-  if (!user)   return null;
+  if (!user) return null;
   if (adminOnly && user.role !== 'ADMIN') return null;
 
   return (
-    <div className="min-h-screen bg-ui-base flex flex-col">
-      {!isAdminPage && <Navbar />}
+  <div className="min-h-screen bg-ui-base flex flex-col">
 
-      <div className="flex flex-1">
-        {isAdminPage && <AdminSidebar />}
+    <Navbar />
 
-        <main className={`flex-1 min-w-0 ${isAdminPage ? 'p-0' : ''}`}>
-          {children}
-        </main>
-      </div>
+    <div className="flex flex-1">
+
+      {isAdminPage && <AdminSidebar />}
+
+      <main className="flex-1 min-w-0">
+        {children}
+      </main>
+
     </div>
-  );
+  </div>
+);
 }
 
 function Spinner() {

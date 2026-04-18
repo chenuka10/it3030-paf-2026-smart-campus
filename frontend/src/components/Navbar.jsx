@@ -19,7 +19,7 @@ export default function Navbar() {
 
       {/* Brand */}
       <div
-        onClick={() => navigate('/home')}
+        onClick={() => navigate(user?.role === 'ADMIN' ? '/admin' : '/home')}
         className="flex items-center gap-2.5 cursor-pointer mr-4 shrink-0"
       >
         <div className="w-[34px] h-[34px] rounded-lg bg-blue-100 border border-blue-200 flex items-center justify-center">

@@ -1,10 +1,12 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import NotificationBell from './NotificationBell';
 
 const NAV_LINKS = [
-  { label: 'Home',      path: '/home',    icon: '⌂' },
+  { label: 'Home', path: '/home', icon: '⌂' },
   { label: 'Resources', path: '/resources', icon: '◫' },
-  { label: 'Profile',   path: '/profile', icon: '◉' },
+  { label: 'Profile',   path: '/profile',   icon: '◉' },
+  { label: 'Tickets',   path: '/tickets',   icon: '✉' },
 ];
 
 export default function Navbar() {
@@ -12,140 +14,120 @@ export default function Navbar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
-  const handleLogout = () => { logout(); navigate('/login'); };
-
   return (
-    <nav style={s.nav}>
+    <nav className="flex items-center gap-2 px-7 h-[60px] bg-white border-b border-gray-200 backdrop-blur-md sticky top-0 z-[200] font-sans">
+
       {/* Brand */}
-      <div style={s.brand} onClick={() => navigate('/home')}>
-        <div style={s.logoRing}>
-          <div style={s.logoDiamond} />
+      <div
+        onClick={() => navigate(user?.role === 'ADMIN' ? '/admin' : '/home')}
+        className="flex items-center gap-2.5 cursor-pointer mr-4 shrink-0"
+      >
+        <div className="w-[34px] h-[34px] rounded-lg bg-blue-100 border border-blue-200 flex items-center justify-center">
+          <div className="w-[14px] h-[14px] rounded-sm bg-gradient-to-br from-sky-400 to-sky-600 rotate-45" />
         </div>
+
         <div>
-          <div style={s.brandName}>SmartCampus</div>
-          <div style={s.brandSub}>SLIIT</div>
+          <div className="text-[14px] font-extrabold text-gray-900 leading-tight tracking-tight">
+            SmartCampus
+          </div>
+          <div className="text-[10px] text-gray-500 tracking-widest font-mono">
+            SLIIT
+          </div>
         </div>
       </div>
 
-      {/* Nav links */}
-      <div style={s.links}>
+      {/* Links */}
+      <div className="flex items-center gap-1 flex-1">
         {NAV_LINKS.map(link => {
-          const active = pathname === link.path || pathname.startsWith(link.path + '/');
+          const active =
+            pathname === link.path ||
+            pathname.startsWith(link.path + '/');
+
           return (
-            <button key={link.path}
-              style={{ ...s.link, ...(active ? s.linkActive : {}) }}
+            <button
+              key={link.path}
               onClick={() => navigate(link.path)}
-              onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#d0e8ff'; }}
-              onMouseLeave={e => { if (!active) e.currentTarget.style.color = '#7a9ab5'; }}>
-              <span style={s.linkIcon}>{link.icon}</span>
+              className={`
+                relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-semibold tracking-tight transition
+                ${active
+                  ? 'text-gray-900'
+                  : 'text-gray-500 hover:text-blue-500'}
+              `}
+            >
+              <span className="text-[13px] opacity-80">{link.icon}</span>
               {link.label}
-              {active && <div style={s.activePip} />}
+
+              {active && (
+                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-sky-500" />
+              )}
             </button>
           );
         })}
 
+        {/* Admin */}
         {user?.role === 'ADMIN' && (
           <button
-            style={{ ...s.link, ...(pathname.startsWith('/admin') ? s.linkActive : {}), ...s.adminLink }}
             onClick={() => navigate('/admin')}
-            onMouseEnter={e => { if (!pathname.startsWith('/admin')) { e.currentTarget.style.color = '#fb7185'; e.currentTarget.style.background = 'rgba(251,113,133,0.08)'; } }}
-            onMouseLeave={e => { if (!pathname.startsWith('/admin')) { e.currentTarget.style.color = '#fb7185'; e.currentTarget.style.background = 'rgba(251,113,133,0.06)'; } }}>
-            <span style={s.linkIcon}>⚙</span>
+            className={`
+              relative flex items-center gap-1.5 px-3 py-1.5 ml-2 rounded-lg text-[13px] font-semibold
+              border transition
+              ${pathname.startsWith('/admin')
+                ? 'text-rose-500 border-rose-300 bg-rose-50'
+                : 'text-rose-500 border-rose-200 bg-rose-50 hover:bg-rose-100'}
+            `}
+          >
+            <span className="text-[13px]">⚙</span>
             Admin
-            {pathname.startsWith('/admin') && <div style={{ ...s.activePip, background: '#fb7185' }} />}
+
+            {pathname.startsWith('/admin') && (
+              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-rose-500" />
+            )}
           </button>
         )}
       </div>
 
-      {/* Right — avatar + logout */}
-      <div style={s.right}>
+      {/* Right */}
+      <div className="flex items-center gap-2 ml-auto">
+        <NotificationBell />
+
+        {/* User */}
         {user && (
-          <div style={s.userChip} onClick={() => navigate('/profile')}>
-            {user.imageUrl
-              ? <img src={user.imageUrl} alt="" style={s.avatar} />
-              : <div style={s.avatarFallback}>{user.name?.[0]?.toUpperCase()}</div>}
-            <div style={s.userInfo}>
-              <div style={s.userName}>{user.name?.split(' ')[0]}</div>
-              <div style={s.userRole}>{user.role}</div>
+          <div
+            onClick={() => navigate('/profile')}
+            className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-100 rounded-lg cursor-pointer"
+          >
+            {user.imageUrl ? (
+              <img
+                src={user.imageUrl}
+                alt=""
+                className="w-[26px] h-[26px] rounded-full border border-blue-300"
+              />
+            ) : (
+              <div className="w-[26px] h-[26px] rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-[11px] font-extrabold text-white">
+                {user.name?.[0]?.toUpperCase()}
+              </div>
+            )}
+
+            <div className="leading-tight">
+              <div className="text-[12px] font-bold text-blue-900">
+                {user.name?.split(' ')[0]}
+              </div>
+              <div className="text-[10px] text-gray-500 font-mono tracking-wide">
+                {user.role}
+              </div>
             </div>
           </div>
         )}
-        <button style={s.logoutBtn} onClick={handleLogout}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(251,113,133,0.12)'; e.currentTarget.style.color = '#fb7185'; e.currentTarget.style.borderColor = 'rgba(251,113,133,0.3)'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#3d5a70'; e.currentTarget.style.borderColor = 'rgba(56,189,248,0.12)'; }}>
+
+        {/* Logout */}
+        <button
+          onClick={() => { logout(); navigate('/login'); }}
+          className="w-8 h-8 flex items-center justify-center border border-gray-200 rounded-lg text-gray-500 hover:text-rose-500 hover:bg-rose-50 hover:border-rose-300 transition"
+          title="Sign out"
+        >
           ⏻
         </button>
       </div>
     </nav>
   );
 }
-
-const s = {
-  nav: {
-    display: 'flex', alignItems: 'center', gap: 8,
-    padding: '0 28px', height: 60,
-    background: 'rgba(5,11,24,0.95)',
-    borderBottom: '1px solid rgba(56,189,248,0.1)',
-    backdropFilter: 'blur(16px)',
-    position: 'sticky', top: 0, zIndex: 200,
-    fontFamily: "'DM Sans', sans-serif",
-  },
-  brand: {
-    display: 'flex', alignItems: 'center', gap: 10,
-    cursor: 'pointer', marginRight: 16, flexShrink: 0,
-  },
-  logoRing: {
-    width: 34, height: 34, borderRadius: 9,
-    background: 'rgba(56,189,248,0.1)',
-    border: '1px solid rgba(56,189,248,0.25)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-  },
-  logoDiamond: {
-    width: 14, height: 14, borderRadius: 3,
-    background: 'linear-gradient(135deg,#38bdf8,#0ea5e9)',
-    transform: 'rotate(45deg)',
-  },
-  brandName: { fontSize: 14, fontWeight: 800, color: '#f0f6ff', letterSpacing: '-0.02em', lineHeight: 1.1 },
-  brandSub:  { fontSize: 10, color: '#3d5a70', letterSpacing: '0.1em', fontFamily: "'Geist Mono',monospace" },
-  links: { display: 'flex', alignItems: 'center', gap: 2, flex: 1 },
-  link: {
-    display: 'flex', alignItems: 'center', gap: 6, position: 'relative',
-    background: 'none', border: 'none', color: '#7a9ab5',
-    fontSize: 13, fontWeight: 600, cursor: 'pointer',
-    padding: '6px 12px', borderRadius: 8,
-    fontFamily: 'inherit', transition: 'color 0.2s',
-    letterSpacing: '-0.01em',
-  },
-  linkActive: { color: '#f0f6ff' },
-  linkIcon:   { fontSize: 13, opacity: 0.8 },
-  activePip: {
-    position: 'absolute', bottom: -2, left: '50%',
-    transform: 'translateX(-50%)',
-    width: 4, height: 4, borderRadius: '50%', background: '#38bdf8',
-  },
-  adminLink: {
-    color: '#fb7185',
-    background: 'rgba(251,113,133,0.06)',
-    border: '1px solid rgba(251,113,133,0.15)',
-    marginLeft: 8,
-  },
-  right: { display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' },
-  userChip: {
-    display: 'flex', alignItems: 'center', gap: 9,
-    padding: '5px 12px 5px 6px',
-    background: 'rgba(56,189,248,0.05)',
-    border: '1px solid rgba(56,189,248,0.12)',
-    borderRadius: 10, cursor: 'pointer',
-  },
-  avatar:        { width: 26, height: 26, borderRadius: '50%', border: '1px solid rgba(56,189,248,0.3)', display: 'block' },
-  avatarFallback:{ width: 26, height: 26, borderRadius: '50%', background: 'linear-gradient(135deg,#38bdf8,#0ea5e9)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#050b18' },
-  userInfo: { lineHeight: 1.2 },
-  userName: { fontSize: 12, fontWeight: 700, color: '#d0e8ff' },
-  userRole: { fontSize: 10, color: '#3d5a70', fontFamily: "'Geist Mono',monospace", letterSpacing: '0.06em' },
-  logoutBtn: {
-    background: 'transparent', border: '1px solid rgba(56,189,248,0.12)',
-    borderRadius: 8, color: '#3d5a70', width: 32, height: 32,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    cursor: 'pointer', fontSize: 14, transition: 'all 0.2s', fontFamily: 'inherit',
-  },
-};

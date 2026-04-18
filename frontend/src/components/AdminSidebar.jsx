@@ -1,61 +1,123 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext'; // ✅ import auth
+import { useAuth } from '../context/AuthContext';
+import NotificationBell from './NotificationBell';
 
 const ADMIN_SECTIONS = [
-  { label: 'Overview', path: '/admin', exact: true, icon: '▦', desc: 'Dashboard hub' },
-  { label: 'Users', path: '/admin/users', icon: '◉', desc: 'Manage members' },
-  {  label: 'Resources', path: '/admin/resources', icon: '◫', desc: 'Campus resources' }, 
-  { label: 'Notifications', path: '/admin/notifications', icon: '◎', desc: 'Send alerts' },
-  { label: 'Reports', path: '/admin/reports', icon: '◈', desc: 'Analytics & logs' },
+  { label: 'Overview',  path: '/admin',            exact: true, icon: '▦', desc: 'Dashboard hub' },
+  { label: 'Users',     path: '/admin/users',                   icon: '◉', desc: 'Manage members' },
+  { label: 'Resources', path: '/admin/resources',               icon: '◫', desc: 'Campus resources' },
+  { label: 'Reports',   path: '/admin/reports',                 icon: '◈', desc: 'Analytics & logs' },
 ];
 
 export default function AdminSidebar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const { logout } = useAuth(); // ✅ get logout
+  const { user, logout } = useAuth();
 
   const isActive = (item) =>
     item.exact ? pathname === item.path : pathname.startsWith(item.path);
 
   const handleLogout = () => {
-    logout();            // remove token / user
-    navigate('/login');   // redirect to login
+    logout();
+    navigate('/login');
   };
 
   return (
-    <aside style={s.sidebar}>
-      <div style={s.sideHeader}>
-        <div style={s.sideLabel}>ADMIN PANEL</div>
-        <div style={s.sideSub}>Management Console</div>
+    <aside className="w-[220px] shrink-0 bg-ui-base/60 border-r border-ui-sky/10 backdrop-blur-md flex flex-col min-h-[calc(100vh-60px)] sticky top-[60px]">
+
+      {/* Header */}
+      <div className="px-5 pt-6 pb-4 border-b border-ui-sky/8">
+        <div className="text-[9px] font-bold tracking-[0.18em] text-ui-danger font-mono mb-1">
+          ADMIN PANEL
+        </div>
+        <div className="text-[13px] font-bold text-ui-bright">
+          Management Console
+        </div>
+
+        {/* Real notifications */}
+        <div className="mt-4 flex items-center justify-between">
+          <div>
+            <div className="text-[11px] font-semibold text-ui-muted">
+              Notifications
+            </div>
+            <div className="text-[10px] text-ui-dim/70 font-mono">
+              Live alerts & updates
+            </div>
+          </div>
+
+          <NotificationBell variant="sidebar" />
+        </div>
       </div>
 
-      <nav style={s.nav}>
+      {/* Nav */}
+      <nav className="px-2.5 py-3 flex-1 flex flex-col gap-0.5">
         {ADMIN_SECTIONS.map(item => {
           const active = isActive(item);
           return (
-            <button key={item.path}
-              style={{ ...s.item, ...(active ? s.itemActive : {}) }}
+            <button
+              key={item.path}
               onClick={() => navigate(item.path)}
-              onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(56,189,248,0.05)'; }}
-              onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}>
-              <span style={{ ...s.icon, ...(active ? s.iconActive : {}) }}>{item.icon}</span>
-              <div style={s.itemText}>
-                <div style={{ ...s.itemLabel, ...(active ? s.itemLabelActive : {}) }}>{item.label}</div>
-                <div style={s.itemDesc}>{item.desc}</div>
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-[10px] relative border-none cursor-pointer text-left transition-colors duration-150 w-full
+                ${active ? 'bg-ui-sky/8' : 'bg-transparent hover:bg-ui-sky/5'}`}
+            >
+              <span className={`text-[16px] shrink-0 transition-colors duration-200 ${active ? 'text-ui-sky' : 'text-ui-dim'}`}>
+                {item.icon}
+              </span>
+
+              <div className="flex-1 min-w-0">
+                <div className={`text-[13px] font-semibold tracking-[-0.01em] ${active ? 'text-ui-bright' : 'text-ui-muted'}`}>
+                  {item.label}
+                </div>
+                <div className="text-[10px] text-ui-dim/70 mt-px font-mono">
+                  {item.desc}
+                </div>
               </div>
-              {active && <div style={s.activeBar} />}
+
+              {active && (
+                <div className="absolute right-0 top-[20%] bottom-[20%] w-[3px] rounded-sm bg-ui-sky" />
+              )}
             </button>
           );
         })}
       </nav>
 
-      {/* Footer with logout */}
-      <div style={s.sideFooter}>
-        <button 
-          style={{ ...s.footerButton }} 
+      {/* Footer */}
+      <div className="px-5 py-4 border-t border-ui-sky/8 space-y-3">
+
+        {/* Profile */}
+        {user && (
+          <div
+            onClick={() => navigate('/profile')}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-[10px] bg-ui-sky/6 hover:bg-ui-sky/10 cursor-pointer transition-colors duration-150"
+            title="Go to profile"
+          >
+            {user.imageUrl ? (
+              <img
+                src={user.imageUrl}
+                alt=""
+                className="w-9 h-9 rounded-full object-cover border border-ui-sky/20"
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-[13px] font-extrabold text-white">
+                {user.name?.[0]?.toUpperCase()}
+              </div>
+            )}
+
+            <div className="min-w-0">
+              <div className="text-[12px] font-bold text-ui-bright truncate">
+                {user.name}
+              </div>
+              <div className="text-[10px] text-ui-dim font-mono tracking-wide">
+                {user.role}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Logout */}
+        <button
           onClick={handleLogout}
-          onMouseEnter={e => e.currentTarget.style.background = 'rgba(251,113,133,0.1)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          className="w-full flex items-center gap-2 text-[13px] font-semibold text-ui-danger bg-transparent border-none cursor-pointer px-3 py-2 rounded-[8px] transition-colors duration-150 hover:bg-ui-danger/10"
         >
           ⏻ Logout
         </button>
@@ -63,51 +125,3 @@ export default function AdminSidebar() {
     </aside>
   );
 }
-
-const s = {
-  sidebar: {
-    width: 220, flexShrink: 0,
-    background: 'rgba(8,16,32,0.6)',
-    borderRight: '1px solid rgba(56,189,248,0.1)',
-    backdropFilter: 'blur(12px)',
-    display: 'flex', flexDirection: 'column',
-    minHeight: 'calc(100vh - 60px)',
-    position: 'sticky', top: 60,
-    fontFamily: "'DM Sans', sans-serif",
-  },
-  sideHeader: {
-    padding: '24px 20px 16px',
-    borderBottom: '1px solid rgba(56,189,248,0.08)',
-  },
-  sideLabel: {
-    fontSize: 9, fontWeight: 700, letterSpacing: '0.18em',
-    color: '#fb7185', fontFamily: "'Geist Mono',monospace",
-    marginBottom: 4,
-  },
-  sideSub: { fontSize: 13, fontWeight: 700, color: '#d0e8ff' },
-  nav: { padding: '12px 10px', flex: 1, display: 'flex', flexDirection: 'column', gap: 2 },
-  item: {
-    display: 'flex', alignItems: 'center', gap: 12,
-    padding: '10px 12px', borderRadius: 10, position: 'relative',
-    background: 'transparent', border: 'none', cursor: 'pointer',
-    textAlign: 'left', transition: 'background 0.15s', width: '100%',
-  },
-  itemActive: { background: 'rgba(56,189,248,0.08)' },
-  icon: { fontSize: 16, color: '#3d5a70', flexShrink: 0, transition: 'color 0.2s' },
-  iconActive: { color: '#38bdf8' },
-  itemText: { flex: 1, minWidth: 0 },
-  itemLabel: { fontSize: 13, fontWeight: 600, color: '#7a9ab5', letterSpacing: '-0.01em' },
-  itemLabelActive: { color: '#f0f6ff' },
-  itemDesc: { fontSize: 10, color: '#2d4a60', marginTop: 1, fontFamily: "'Geist Mono',monospace" },
-  activeBar: {
-    position: 'absolute', right: 0, top: '20%', bottom: '20%',
-    width: 3, borderRadius: 2, background: '#38bdf8',
-  },
-  sideFooter: {
-    padding: '16px 20px',
-    borderTop: '1px solid rgba(56,189,248,0.08)',
-    display: 'flex', alignItems: 'center', gap: 8,
-  },
-  footerDot: { width: 7, height: 7, borderRadius: '50%', background: '#22c55e', flexShrink: 0 },
-  footerText: { fontSize: 11, color: '#3d5a70', fontFamily: "'Geist Mono',monospace" },
-};

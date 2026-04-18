@@ -5,8 +5,8 @@ import api from "../../api/axios";
 import Layout from "../../components/Layout";
 
 const STATUS_STYLES = {
-  ACTIVE: { bg: 'rgba(34,197,94,0.12)', text: '#4ade80', border: 'rgba(34,197,94,0.25)' },
-  OUT_OF_SERVICE: { bg: 'rgba(251,113,133,0.12)', text: '#fb7185', border: 'rgba(251,113,133,0.25)' },
+  ACTIVE:         { bg: 'rgba(111,143,114,0.12)', text: 'var(--color-ui-green)',  border: 'rgba(111,143,114,0.25)' },
+  OUT_OF_SERVICE: { bg: 'rgba(224,122,95,0.12)',  text: 'var(--color-ui-danger)', border: 'rgba(224,122,95,0.25)'  },
 };
 
 export default function ResourceListPage() {
@@ -14,11 +14,11 @@ export default function ResourceListPage() {
   const navigate = useNavigate();
 
   const [resources, setResources] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [deleting, setDeleting] = useState(null);
-  const [toast, setToast] = useState(null);
-  const [search, setSearch] = useState("");
+  const [loading,   setLoading]   = useState(true);
+  const [error,     setError]     = useState(null);
+  const [deleting,  setDeleting]  = useState(null);
+  const [toast,     setToast]     = useState(null);
+  const [search,    setSearch]    = useState("");
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
@@ -26,24 +26,17 @@ export default function ResourceListPage() {
   };
 
   const fetchResources = async () => {
-    setLoading(true);
-    setError(null);
+    setLoading(true); setError(null);
     try {
       const { data } = await api.get("/api/resources");
       setResources(data);
     } catch (err) {
       setError('Failed to load resources. Check backend connection.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   useEffect(() => {
-    if (!user) {
-      navigate("/login");
-      return;
-    }
+    if (!user) { navigate("/login"); return; }
     fetchResources();
   }, [user, navigate]);
 
@@ -53,7 +46,7 @@ export default function ResourceListPage() {
       await api.delete(`/api/resources/${id}`);
       setResources(prev => prev.filter(r => r.id !== id));
       showToast('Resource deleted successfully');
-    } catch (err) {
+    } catch {
       showToast('Delete failed', 'error');
     }
   };
@@ -74,19 +67,21 @@ export default function ResourceListPage() {
     r.location?.toLowerCase().includes(search.toLowerCase())
   );
 
-  // Updated stats for ACTIVE and OUT_OF_SERVICE
   const stats = {
-    total: resources.length,
-    active: resources.filter(r => r.status === 'ACTIVE').length,
+    total:        resources.length,
+    active:       resources.filter(r => r.status === 'ACTIVE').length,
     outOfService: resources.filter(r => r.status === 'OUT_OF_SERVICE').length,
   };
 
   if (loading) {
     return (
       <Layout adminOnly>
-        <div style={s.loadingContainer}>
-          <div style={s.spinner} />
-          <p style={s.loadingText}>Loading resources...</p>
+        <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+          <div
+            className="w-10 h-10 rounded-full border-[3px] border-ui-sky/15"
+            style={{ borderTopColor: 'var(--color-ui-sky)', animation: 'spin 0.8s linear infinite' }}
+          />
+          <p className="text-ui-muted text-[14px]">Loading resources...</p>
         </div>
       </Layout>
     );
@@ -94,27 +89,47 @@ export default function ResourceListPage() {
 
   return (
     <Layout adminOnly>
+
+      {/* Toast */}
       {toast && (
-        <div style={{ ...s.toast, ...(toast.type === 'error' ? s.toastError : s.toastSuccess) }}>
+        <div
+          className={`fixed top-6 right-6 z-[9999] px-5 py-3 rounded-[10px] text-sm font-semibold backdrop-blur-md
+            ${toast.type === 'error'
+              ? 'bg-ui-danger/10 border border-ui-danger/30 text-ui-danger'
+              : 'bg-ui-green/10 border border-ui-green/30 text-ui-green'}`}
+          style={{ animation: 'fadeUp 0.3s ease' }}
+        >
           {toast.type === 'success' ? '✓' : '✕'} {toast.msg}
         </div>
       )}
 
       {/* Delete Confirm Modal */}
       {deleting && (
-        <div style={s.overlay} onClick={e => e.target === e.currentTarget && setDeleting(null)}>
-          <div style={s.modal}>
-            <div style={s.modalIcon}>⚠️</div>
-            <h3 style={s.modalTitle}>Delete Resource</h3>
-            <p style={s.modalText}>
-              Are you sure you want to delete <strong>{deleting.name}</strong>?
+        <div
+          className="fixed inset-0 bg-ui-surface/40 backdrop-blur-sm flex items-center justify-center z-[1000] p-6"
+          onClick={e => e.target === e.currentTarget && setDeleting(null)}
+        >
+          <div
+            className="bg-ui-base border border-ui-sky/20 rounded-[20px] p-8 w-full max-w-[480px] text-center"
+            style={{ animation: 'scaleIn 0.25s ease' }}
+          >
+            <div className="text-[48px] mb-4">⚠️</div>
+            <h3 className="text-[22px] font-extrabold tracking-[-0.03em] m-0 mb-3">Delete Resource</h3>
+            <p className="text-[14px] text-ui-muted leading-[1.7] mb-6">
+              Are you sure you want to delete <strong className="text-ui-bright">{deleting.name}</strong>?
               This action cannot be undone.
             </p>
-            <div style={s.modalActions}>
-              <button style={s.cancelBtn} onClick={() => setDeleting(null)}>
+            <div className="flex gap-3 justify-center">
+              <button
+                className="bg-transparent border border-ui-sky/20 rounded-[10px] text-ui-muted px-5 py-[9px] text-[14px] font-semibold cursor-pointer"
+                onClick={() => setDeleting(null)}
+              >
                 Cancel
               </button>
-              <button style={s.deleteBtn} onClick={() => handleDelete(deleting.id)}>
+              <button
+                className="bg-ui-danger border-none rounded-[10px] text-ui-base px-6 py-[9px] text-[14px] font-bold cursor-pointer"
+                onClick={() => handleDelete(deleting.id)}
+              >
                 Yes, Delete
               </button>
             </div>
@@ -122,515 +137,185 @@ export default function ResourceListPage() {
         </div>
       )}
 
-      <div style={s.container}>
+      <div className="px-9 py-8 max-w-[1400px] mx-auto w-full">
+
         {/* Header */}
-        <div style={s.header}>
+        <div className="flex justify-between items-end mb-7 flex-wrap gap-4">
           <div>
-            <div style={s.sectionLabel}>RESOURCE MANAGEMENT</div>
-            <h1 style={s.title}>Campus Resources</h1>
-            <p style={s.subtitle}>Manage labs, equipment, rooms, and other campus assets</p>
+            <div className="text-[10px] font-bold tracking-[0.15em] text-ui-warn font-mono uppercase mb-2">
+              RESOURCE MANAGEMENT
+            </div>
+            <h1 className="text-[34px] font-extrabold m-0 mb-2 tracking-[-0.04em]">
+              Campus Resources
+            </h1>
+            <p className="text-ui-muted text-[15px] m-0">
+              Manage labs, equipment, rooms, and other campus assets
+            </p>
           </div>
-          <button style={s.addBtn} onClick={() => navigate("/admin/resources/add")}>
+          <button
+            className="bg-ui-sky/10 border border-ui-sky/25 rounded-[10px] text-ui-sky px-6 py-3 text-[14px] font-bold cursor-pointer transition-all duration-200 whitespace-nowrap hover:bg-ui-sky/20 hover:border-ui-sky/40"
+            onClick={() => navigate("/admin/resources/add")}
+          >
             + Add Resource
           </button>
         </div>
 
-        {/* Stats Cards - Updated to 3 cards */}
+        {/* Stats / Error */}
         {error ? (
-          <div style={s.errorBanner}>⚠ {error}</div>
+          <div className="bg-ui-danger/8 border border-ui-danger/20 rounded-[10px] px-5 py-3 text-ui-danger text-[14px] mb-5">
+            ⚠ {error}
+          </div>
         ) : (
-          <div style={s.statsGrid}>
-            <div style={s.statCard}>
-              <div style={{ ...s.statValue, color: '#38bdf8' }}>{stats.total}</div>
-              <div style={s.statLabel}>TOTAL RESOURCES</div>
-            </div>
-            <div style={s.statCard}>
-              <div style={{ ...s.statValue, color: '#4ade80' }}>{stats.active}</div>
-              <div style={s.statLabel}>ACTIVE</div>
-            </div>
-            <div style={s.statCard}>
-              <div style={{ ...s.statValue, color: '#fb7185' }}>{stats.outOfService}</div>
-              <div style={s.statLabel}>OUT OF SERVICE</div>
-            </div>
+          <div className="grid grid-cols-3 gap-3 mb-7">
+            {[
+              { label: 'TOTAL RESOURCES', value: stats.total,        color: 'var(--color-ui-sky)'    },
+              { label: 'ACTIVE',          value: stats.active,       color: 'var(--color-ui-green)'  },
+              { label: 'OUT OF SERVICE',  value: stats.outOfService, color: 'var(--color-ui-danger)' },
+            ].map(st => (
+              <div key={st.label} className="card flex flex-col gap-1.5">
+                <span className="text-[32px] font-extrabold leading-none" style={{ color: st.color }}>
+                  {st.value}
+                </span>
+                <span className="text-[11px] text-ui-dim font-mono tracking-[0.08em] uppercase">
+                  {st.label}
+                </span>
+              </div>
+            ))}
           </div>
         )}
 
-        {/* Search and Refresh */}
-        <div style={s.controls}>
-          <div style={s.searchWrapper}>
-            <span style={s.searchIcon}>🔍</span>
+        {/* Controls */}
+        <div className="flex gap-3 mb-5 items-center">
+          <div className="relative flex-1">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ui-dim text-base">🔍</span>
             <input
               type="text"
               placeholder="Search by name, type, or location..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={s.searchInput}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full bg-ui-base border border-ui-sky/15 rounded-[10px] py-[11px] pl-10 pr-4 text-ui-bright text-[14px] outline-none box-border"
             />
           </div>
-          <button style={s.refreshBtn} onClick={fetchResources}>
+          <button
+            className="bg-ui-base border border-ui-sky/20 rounded-[10px] px-5 py-[11px] text-ui-muted text-[14px] font-semibold cursor-pointer whitespace-nowrap hover:border-ui-sky/40 transition-all duration-200"
+            onClick={fetchResources}
+          >
             ↺ Refresh
           </button>
         </div>
 
-        {/* Resources Table */}
-        <div style={s.tableWrapper}>
-          <table style={s.table}>
+        {/* Table */}
+        <div className="bg-ui-base/60 border border-ui-sky/12 rounded-2xl overflow-auto backdrop-blur-md">
+          <table className="w-full border-collapse" style={{ minWidth: 1100 }}>
             <thead>
               <tr>
-                <th style={s.th}>NAME</th>
-                <th style={s.th}>TYPE</th>
-                <th style={s.th}>DESCRIPTION</th>
-                <th style={s.th}>LOCATION</th>
-                <th style={s.th}>CAPACITY</th>
-                <th style={s.th}>STATUS</th>
-                <th style={s.th}>AVAILABLE DATE</th>
-                <th style={s.th}>AVAILABLE HOURS</th>
-                <th style={s.th}>MAX HOURS</th>
-                <th style={s.th}>ACTIONS</th>
+                {['NAME','TYPE','DESCRIPTION','LOCATION','CAPACITY','STATUS','AVAILABLE HOURS','MAX HOURS','ACTIONS'].map(h => (
+                  <th
+                    key={h}
+                    className="text-left px-5 py-3.5 text-[10px] font-bold tracking-[0.12em] text-ui-dim font-mono uppercase border-b border-ui-sky/10 bg-ui-sky/3"
+                  >
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan="10" style={s.emptyCell}>
+                  <td colSpan={9} className="text-center py-[60px] text-ui-dim italic text-[14px]">
                     {search ? "No matching resources found" : "No resources found. Click 'Add Resource' to create one."}
                   </td>
                 </tr>
-              ) : (
-                filtered.map((resource, index) => (
-                  <tr key={resource.id} style={{ ...s.tr, animationDelay: `${index * 0.03}s` }}>
-                    <td style={{ ...s.td, fontWeight: 600, color: '#d0e8ff' }}>{resource.name}</td>
-                    <td style={s.td}>
-                      <span style={s.typeBadge}>{resource.type}</span>
-                    </td>
-                    <td style={{ ...s.td, color: '#7a9ab5', fontSize: 13, maxWidth: 250 }}>
-                      {resource.description?.slice(0, 80)}
-                      {resource.description?.length > 80 ? '...' : ''}
-                    </td>
-                    <td style={{ ...s.td, color: '#7a9ab5' }}>{resource.location || '—'}</td>
-                    <td style={{ ...s.td, color: '#7a9ab5' }}>{resource.capacity || '—'}</td>
-                    <td style={s.td}>
-                      <span style={{
-                        ...s.statusBadge,
-                        background: STATUS_STYLES[resource.status]?.bg || STATUS_STYLES.ACTIVE.bg,
-                        color: STATUS_STYLES[resource.status]?.text || STATUS_STYLES.ACTIVE.text,
-                        borderColor: STATUS_STYLES[resource.status]?.border || STATUS_STYLES.ACTIVE.border,
-                      }}>
-                        {resource.status || 'ACTIVE'}
-                      </span>
-                    </td>
-                    <td style={{ ...s.td, color: '#7a9ab5', fontSize: 13 }}>
-                    {formatDate(resource.availableDate)}
-                    </td>
-                    <td style={{ ...s.td, color: '#7a9ab5', fontSize: 13 }}>
-                      {resource.availableFrom || '—'} - {resource.availableTo || '—'}
-                    </td>
-                    <td style={{ ...s.td, color: '#7a9ab5' }}>{resource.maxBookingHours || '—'}h</td>
-                    <td style={s.td}>
-                      <div style={s.actionButtons}>
-                        <button
-                          style={s.editBtn}
-                          onClick={() => navigate(`/admin/resources/edit/${resource.id}`)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          style={s.deleteBtnSmall}
-                          onClick={() => setDeleting(resource)}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
+              ) : filtered.map((resource, index) => (
+                <ResourceRow
+                  key={resource.id}
+                  resource={resource}
+                  index={index}
+                  onEdit={() => navigate(`/admin/resources/edit/${resource.id}`)}
+                  onDelete={() => setDeleting(resource)}
+                />
+              ))}
             </tbody>
           </table>
         </div>
-        <div style={s.tableFooter}>
+
+        {/* Table Footer */}
+        <div className="px-5 py-3.5 text-[12px] text-ui-dim font-mono border-t border-ui-sky/8 bg-ui-sky/2 rounded-b-2xl">
           Showing {filtered.length} of {resources.length} resources
         </div>
+
       </div>
 
       <style>{`
-        @keyframes rowIn {
-          from {
-            opacity: 0;
-            transform: translateY(5px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        @keyframes spin {
-          to {
-            transform: rotate(360deg);
-          }
-        }
-        @keyframes fadeUp {
-          from {
-            opacity: 0;
-            transform: translateY(8px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        @keyframes scaleIn {
-          from {
-            opacity: 0;
-            transform: scale(0.95);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
+        @keyframes spin    { to { transform: rotate(360deg); } }
+        @keyframes rowIn   { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes fadeUp  { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes scaleIn { from { opacity:0; transform:scale(0.95); }     to { opacity:1; transform:scale(1); } }
       `}</style>
     </Layout>
   );
 }
 
-const s = {
-  container: {
-    padding: '32px 36px',
-    maxWidth: 1400,
-    margin: '0 auto',
-    width: '100%',
-  },
-  loadingContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '400px',
-    gap: '16px',
-  },
-  spinner: {
-    width: 40,
-    height: 40,
-    border: '3px solid rgba(56,189,248,0.15)',
-    borderTopColor: '#38bdf8',
-    borderRadius: '50%',
-    animation: 'spin 0.8s linear infinite',
-  },
-  loadingText: {
-    color: '#7a9ab5',
-    fontSize: 14,
-  },
-  toast: {
-    position: 'fixed',
-    top: 24,
-    right: 24,
-    zIndex: 9999,
-    padding: '12px 20px',
-    borderRadius: 10,
-    fontSize: 14,
-    fontWeight: 600,
-    backdropFilter: 'blur(12px)',
-    animation: 'fadeUp 0.3s ease',
-  },
-  toastSuccess: {
-    background: 'rgba(34,197,94,0.15)',
-    border: '1px solid rgba(34,197,94,0.3)',
-    color: '#4ade80',
-  },
-  toastError: {
-    background: 'rgba(251,113,133,0.15)',
-    border: '1px solid rgba(251,113,133,0.3)',
-    color: '#fb7185',
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginBottom: 28,
-    flexWrap: 'wrap',
-    gap: 16,
-  },
-  sectionLabel: {
-    fontSize: 10,
-    fontWeight: 700,
-    letterSpacing: '0.15em',
-    color: '#fbbf24',
-    fontFamily: "'Geist Mono', monospace",
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: 34,
-    fontWeight: 800,
-    margin: '0 0 8px',
-    letterSpacing: '-0.04em',
-    color: '#f0f6ff',
-  },
-  subtitle: {
-    color: '#7a9ab5',
-    fontSize: 15,
-    margin: 0,
-  },
-  addBtn: {
-    background: 'rgba(56,189,248,0.1)',
-    border: '1px solid rgba(56,189,248,0.25)',
-    borderRadius: 10,
-    color: '#38bdf8',
-    padding: '12px 24px',
-    fontSize: 14,
-    fontWeight: 700,
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    transition: 'all 0.2s',
-    whiteSpace: 'nowrap',
-  },
-  statsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: 12,
-    marginBottom: 28,
-  },
-  statCard: {
-    background: 'rgba(10,20,40,0.7)',
-    border: '1px solid rgba(56,189,248,0.12)',
-    borderRadius: 14,
-    padding: '18px 20px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 6,
-  },
-  statValue: {
-    fontSize: 32,
-    fontWeight: 800,
-    lineHeight: 1,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: '#3d5a70',
-    letterSpacing: '0.08em',
-    fontFamily: "'Geist Mono', monospace",
-    textTransform: 'uppercase',
-  },
-  errorBanner: {
-    background: 'rgba(251,113,133,0.08)',
-    border: '1px solid rgba(251,113,133,0.2)',
-    borderRadius: 10,
-    padding: '12px 20px',
-    color: '#fb7185',
-    fontSize: 14,
-    marginBottom: 20,
-  },
-  controls: {
-    display: 'flex',
-    gap: 12,
-    marginBottom: 20,
-    alignItems: 'center',
-  },
-  searchWrapper: {
-    position: 'relative',
-    flex: 1,
-  },
-  searchIcon: {
-    position: 'absolute',
-    left: 14,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    color: '#3d5a70',
-    fontSize: 16,
-  },
-  searchInput: {
-    width: '100%',
-    background: 'rgba(10,20,40,0.7)',
-    border: '1px solid rgba(56,189,248,0.15)',
-    borderRadius: 10,
-    padding: '11px 16px 11px 40px',
-    color: '#f0f6ff',
-    fontSize: 14,
-    fontFamily: 'inherit',
-    outline: 'none',
-    boxSizing: 'border-box',
-  },
-  refreshBtn: {
-    background: 'rgba(10,20,40,0.7)',
-    border: '1px solid rgba(56,189,248,0.2)',
-    borderRadius: 10,
-    padding: '11px 20px',
-    color: '#7a9ab5',
-    fontSize: 14,
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    fontWeight: 600,
-    whiteSpace: 'nowrap',
-    transition: 'all 0.2s',
-  },
-  tableWrapper: {
-    background: 'rgba(8,16,32,0.6)',
-    border: '1px solid rgba(56,189,248,0.12)',
-    borderRadius: 16,
-    overflow: 'auto',
-    backdropFilter: 'blur(12px)',
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-    minWidth: 1200,
-  },
-  th: {
-    textAlign: 'left',
-    padding: '14px 20px',
-    fontSize: 10,
-    fontWeight: 700,
-    letterSpacing: '0.12em',
-    color: '#3d5a70',
-    fontFamily: "'Geist Mono', monospace",
-    textTransform: 'uppercase',
-    borderBottom: '1px solid rgba(56,189,248,0.1)',
-    background: 'rgba(56,189,248,0.03)',
-  },
-  tr: {
-    transition: 'background 0.15s',
-    animation: 'rowIn 0.4s ease both',
-    borderBottom: '1px solid rgba(56,189,248,0.06)',
-  },
-  td: {
-    padding: '14px 20px',
-    fontSize: 14,
-    verticalAlign: 'middle',
-  },
-  statusBadge: {
-    fontSize: 10,
-    fontWeight: 700,
-    letterSpacing: '0.1em',
-    padding: '3px 9px',
-    borderRadius: 6,
-    border: '1px solid',
-    fontFamily: "'Geist Mono', monospace",
-    textTransform: 'uppercase',
-    display: 'inline-block',
-  },
-  typeBadge: {
-    fontSize: 10,
-    fontWeight: 700,
-    letterSpacing: '0.1em',
-    padding: '3px 9px',
-    borderRadius: 6,
-    background: 'rgba(56,189,248,0.08)',
-    color: '#38bdf8',
-    border: '1px solid rgba(56,189,248,0.2)',
-    fontFamily: "'Geist Mono', monospace",
-    textTransform: 'uppercase',
-    display: 'inline-block',
-  },
-  actionButtons: {
-    display: 'flex',
-    gap: 8,
-    alignItems: 'center',
-  },
-  editBtn: {
-    background: 'rgba(56,189,248,0.08)',
-    border: '1px solid rgba(56,189,248,0.2)',
-    borderRadius: 7,
-    color: '#38bdf8',
-    padding: '5px 14px',
-    fontSize: 12,
-    fontWeight: 700,
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    transition: 'all 0.2s',
-  },
-  deleteBtnSmall: {
-    background: 'transparent',
-    border: '1px solid rgba(56,189,248,0.15)',
-    borderRadius: 7,
-    color: '#3d5a70',
-    padding: '5px 10px',
-    fontSize: 12,
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    transition: 'all 0.2s',
-  },
-  emptyCell: {
-    textAlign: 'center',
-    padding: 60,
-    color: '#3d5a70',
-    fontStyle: 'italic',
-    fontSize: 14,
-  },
-  tableFooter: {
-    padding: '14px 20px',
-    fontSize: 12,
-    color: '#3d5a70',
-    fontFamily: "'Geist Mono', monospace",
-    borderTop: '1px solid rgba(56,189,248,0.08)',
-    background: 'rgba(56,189,248,0.02)',
-    borderRadius: '0 0 16px 16px',
-  },
-  // Modal styles
-  overlay: {
-    position: 'fixed',
-    inset: 0,
-    background: 'rgba(0,0,0,0.7)',
-    backdropFilter: 'blur(4px)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-    padding: 24,
-  },
-  modal: {
-    background: '#0a1428',
-    border: '1px solid rgba(56,189,248,0.2)',
-    borderRadius: 20,
-    padding: 32,
-    width: '100%',
-    maxWidth: 480,
-    textAlign: 'center',
-    animation: 'scaleIn 0.25s ease',
-  },
-  modalIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: 800,
-    margin: '0 0 12px',
-    letterSpacing: '-0.03em',
-    color: '#f0f6ff',
-  },
-  modalText: {
-    fontSize: 14,
-    color: '#7a9ab5',
-    lineHeight: 1.7,
-    margin: '0 0 24px',
-  },
-  modalActions: {
-    display: 'flex',
-    gap: 12,
-    justifyContent: 'center',
-  },
-  cancelBtn: {
-    background: 'transparent',
-    border: '1px solid rgba(56,189,248,0.2)',
-    borderRadius: 10,
-    color: '#7a9ab5',
-    padding: '9px 20px',
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    transition: 'all 0.2s',
-  },
-  deleteBtn: {
-    background: '#fb7185',
-    border: 'none',
-    borderRadius: 10,
-    color: '#fff',
-    padding: '9px 24px',
-    fontSize: 14,
-    fontWeight: 700,
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    transition: 'all 0.2s',
-  },
-};
+/* ── Resource Row ──────────────────────────────────────── */
+function ResourceRow({ resource, index, onEdit, onDelete }) {
+  const [editHov,  setEditHov]  = useState(false);
+  const [trashHov, setTrashHov] = useState(false);
+  const ss = STATUS_STYLES[resource.status] || STATUS_STYLES.ACTIVE;
+
+  return (
+    <tr
+      className="border-b border-ui-sky/6 transition-colors duration-150 hover:bg-ui-sky/3"
+      style={{ animation: `rowIn 0.4s ease both`, animationDelay: `${index * 0.03}s` }}
+    >
+      <td className="px-5 py-3.5 text-[14px] font-semibold text-ui-bright align-middle">
+        {resource.name}
+      </td>
+      <td className="px-5 py-3.5 align-middle">
+        <span className="text-[10px] font-bold tracking-[0.1em] px-[9px] py-[3px] rounded-[6px] bg-ui-sky/8 text-ui-sky border border-ui-sky/20 font-mono uppercase inline-block">
+          {resource.type}
+        </span>
+      </td>
+      <td className="px-5 py-3.5 text-[13px] text-ui-muted align-middle max-w-[250px]">
+        {resource.description?.slice(0, 80)}{resource.description?.length > 80 ? '...' : ''}
+      </td>
+      <td className="px-5 py-3.5 text-[14px] text-ui-muted align-middle">{resource.location || '—'}</td>
+      <td className="px-5 py-3.5 text-[14px] text-ui-muted align-middle">{resource.capacity || '—'}</td>
+      <td className="px-5 py-3.5 align-middle">
+        <span
+          className="text-[10px] font-bold tracking-[0.1em] px-[9px] py-[3px] rounded-[6px] border font-mono uppercase inline-block"
+          style={{ background: ss.bg, color: ss.text, borderColor: ss.border }}
+        >
+          {resource.status || 'ACTIVE'}
+        </span>
+      </td>
+      <td className="px-5 py-3.5 text-[13px] text-ui-muted align-middle">
+        {resource.availableFrom || '—'} - {resource.availableTo || '—'}
+      </td>
+      <td className="px-5 py-3.5 text-[14px] text-ui-muted align-middle">
+        {resource.maxBookingHours || '—'}h
+      </td>
+      <td className="px-5 py-3.5 align-middle">
+        <div className="flex gap-2 items-center">
+          <button
+            className={`border border-ui-sky/20 rounded-[7px] text-ui-sky px-3.5 py-[5px] text-[12px] font-bold cursor-pointer transition-all duration-200
+              ${editHov ? 'bg-ui-sky/15' : 'bg-ui-sky/8'}`}
+            onMouseEnter={() => setEditHov(true)}
+            onMouseLeave={() => setEditHov(false)}
+            onClick={onEdit}
+          >
+            Edit
+          </button>
+          <button
+            className={`bg-transparent rounded-[7px] px-2.5 py-[5px] text-[12px] cursor-pointer transition-all duration-200
+              ${trashHov ? 'border border-ui-danger/40 text-ui-danger' : 'border border-ui-sky/15 text-ui-dim'}`}
+            onMouseEnter={() => setTrashHov(true)}
+            onMouseLeave={() => setTrashHov(false)}
+            onClick={onDelete}
+          >
+            ✕
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}

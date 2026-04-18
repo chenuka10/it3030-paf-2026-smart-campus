@@ -1,6 +1,5 @@
 package lk.sliit.smartcampus.security;
 
-
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,31 +21,44 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest req,
+                                    HttpServletResponse res,
+                                    FilterChain chain) throws ServletException, IOException {
 
-        String header = request.getHeader("Authorization");
+        String token = extractToken(req);
 
-        if (header != null && header.startsWith("Bearer ")) {
-            String token = header.substring(7);
-            if (jwtUtil.isTokenValid(token)) {
-                String email = jwtUtil.extractEmail(token);
-                String role = jwtUtil.extractRole(token);
+        if (token != null && jwtUtil.isTokenValid(token)) {
+            String email = jwtUtil.extractEmail(token);
+            String role  = jwtUtil.extractRole(token);
 
-                 System.out.println(">>> JWT Email: " + email);
-                 System.out.println(">>> JWT Role: " + role);
-
-                UsernamePasswordAuthenticationToken auth =
-                        new UsernamePasswordAuthenticationToken(
-                                email,
-                                null,
-                                List.of(new SimpleGrantedAuthority("ROLE_" + role))
-                        );
-                SecurityContextHolder.getContext().setAuthentication(auth);
-            }
+            var auth = new UsernamePasswordAuthenticationToken(
+                    email, null,
+                    List.of(new SimpleGrantedAuthority("ROLE_" + role))
+            );
+            SecurityContextHolder.getContext().setAuthentication(auth);
         }
 
-        filterChain.doFilter(request, response);
+        chain.doFilter(req, res);
+    }
+
+    /**
+     * Try Authorization header first, then fall back to ?token= query param.
+     * The query param fallback is required for SSE (EventSource API does not
+     * support custom headers in browsers).
+     */
+    private String extractToken(HttpServletRequest req) {
+        // 1. Standard Bearer header
+        String header = req.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            return header.substring(7);
+        }
+
+        // 2. Query param — used only by SSE stream endpoint
+        String queryToken = req.getParameter("token");
+        if (queryToken != null && !queryToken.isBlank()) {
+            return queryToken;
+        }
+
+        return null;
     }
 }

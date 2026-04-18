@@ -51,6 +51,7 @@ public class Resource {
     @Column
     private Integer capacity;
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ResourceStatus status = ResourceStatus.ACTIVE;

@@ -13,24 +13,34 @@ export default function Layout({ children, adminOnly = false }) {
 
   useEffect(() => {
     if (loading) return;
-    if (!user) { navigate('/login'); return; }
-    if (adminOnly && user.role !== 'ADMIN') { navigate('/home'); }
-  }, [user, loading, adminOnly]);
+
+    if (!user) {
+      navigate('/login', { replace: true });
+      return;
+    }
+
+    if (adminOnly && user.role !== 'ADMIN') {
+      navigate('/home', { replace: true });
+    }
+  }, [user, loading, adminOnly, navigate]);
 
   if (loading) return <Spinner />;
-  if (!user)   return null;
+  if (!user) return null;
   if (adminOnly && user.role !== 'ADMIN') return null;
 
   return (
-  <div style={s.root}>
-    {!isAdminPage && <Navbar />}   {/* ✅ hide navbar on admin pages */}
+  <div className="min-h-screen bg-ui-base flex flex-col">
 
-    <div style={s.body}>
-      {isAdminPage && <AdminSidebar />}   {/* ✅ only admin pages get sidebar */}
+    <Navbar />
 
-      <main style={{ ...s.main, ...(isAdminPage ? s.mainWithSidebar : {}) }}>
+    <div className="flex flex-1">
+
+      {isAdminPage && <AdminSidebar />}
+
+      <main className="flex-1 min-w-0">
         {children}
       </main>
+
     </div>
   </div>
 );
@@ -38,22 +48,15 @@ export default function Layout({ children, adminOnly = false }) {
 
 function Spinner() {
   return (
-    <div style={{ minHeight: '100vh', background: '#050b18', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ width: 32, height: 32, borderRadius: '50%', border: '2px solid rgba(56,189,248,0.15)', borderTopColor: '#38bdf8', animation: 'spin 0.8s linear infinite' }} />
+    <div className="min-h-screen bg-ui-base flex items-center justify-center">
+      <div
+        className="w-8 h-8 rounded-full border-2 border-ui-sky/15"
+        style={{
+          borderTopColor: 'var(--color-ui-sky)',
+          animation: 'spin 0.8s linear infinite',
+        }}
+      />
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
-
-const s = {
-  root: {
-    minHeight: '100vh',
-    background: '#050b18',
-    fontFamily: "'DM Sans', sans-serif",
-    color: '#f0f6ff',
-    display: 'flex', flexDirection: 'column',
-  },
-  body: { display: 'flex', flex: 1 },
-  main: { flex: 1, minWidth: 0 },
-  mainWithSidebar: { padding: 0 },
-};

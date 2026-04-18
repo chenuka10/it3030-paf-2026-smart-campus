@@ -1,9 +1,9 @@
-import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import NotificationBell from './NotificationBell';
 
 const NAV_LINKS = [
-  { label: 'Home',      path: '/home',      icon: '⌂' },
+  { label: 'Home', path: '/home', icon: '⌂' },
   { label: 'Resources', path: '/resources', icon: '◫' },
   { label: 'Profile',   path: '/profile',   icon: '◉' },
   { label: 'Tickets',   path: '/tickets',   icon: '✉' },
@@ -13,114 +13,117 @@ export default function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const [logoutHovered, setLogoutHovered] = useState(false);
-
-  const handleLogout = () => { logout(); navigate('/login'); };
 
   return (
-    <nav className="flex items-center gap-2 px-7 h-[60px] bg-ui-base/95 border-b border-ui-sky/10 backdrop-blur-md sticky top-0 z-[200]">
+    <nav className="flex items-center gap-2 px-7 h-[60px] bg-white border-b border-gray-200 backdrop-blur-md sticky top-0 z-[200] font-sans">
 
       {/* Brand */}
       <div
-        className="flex items-center gap-2.5 cursor-pointer mr-4 shrink-0"
         onClick={() => navigate('/home')}
+        className="flex items-center gap-2.5 cursor-pointer mr-4 shrink-0"
       >
-        <div className="w-[34px] h-[34px] rounded-[9px] bg-ui-sky/10 border border-ui-sky/25 flex items-center justify-center">
-          <div
-            className="w-3.5 h-3.5 rounded-[3px] rotate-45"
-            style={{ background: 'var(--gradient-primary)' }}
-          />
+        <div className="w-[34px] h-[34px] rounded-lg bg-blue-100 border border-blue-200 flex items-center justify-center">
+          <div className="w-[14px] h-[14px] rounded-sm bg-gradient-to-br from-sky-400 to-sky-600 rotate-45" />
         </div>
+
         <div>
-          <div className="text-[14px] font-extrabold text-ui-surface tracking-tight leading-[1.1]">
+          <div className="text-[14px] font-extrabold text-gray-900 leading-tight tracking-tight">
             SmartCampus
           </div>
-          <div className="text-[10px] text-ui-dim font-mono tracking-[0.1em]">
+          <div className="text-[10px] text-gray-500 tracking-widest font-mono">
             SLIIT
           </div>
         </div>
       </div>
 
-      {/* Nav links */}
-      <div className="flex items-center gap-0.5 flex-1">
+      {/* Links */}
+      <div className="flex items-center gap-1 flex-1">
         {NAV_LINKS.map(link => {
-          const active = pathname === link.path || pathname.startsWith(link.path + '/');
+          const active =
+            pathname === link.path ||
+            pathname.startsWith(link.path + '/');
+
           return (
             <button
               key={link.path}
               onClick={() => navigate(link.path)}
               className={`
-                flex items-center gap-1.5 relative bg-transparent border-none
-                text-[13px] font-semibold cursor-pointer px-3 py-1.5 rounded-lg
-                tracking-[-0.01em] transition-colors duration-200
-                ${active ? 'text-ui-surface' : 'text-ui-muted hover:text-ui-bright'}
+                relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-semibold tracking-tight transition
+                ${active
+                  ? 'text-gray-900'
+                  : 'text-gray-500 hover:text-blue-500'}
               `}
             >
               <span className="text-[13px] opacity-80">{link.icon}</span>
               {link.label}
+
               {active && (
-                <div className="absolute bottom-[-2px] left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-ui-sky" />
+                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-sky-500" />
               )}
             </button>
           );
         })}
 
+        {/* Admin */}
         {user?.role === 'ADMIN' && (
           <button
             onClick={() => navigate('/admin')}
             className={`
-              flex items-center gap-1.5 relative text-[13px] font-semibold cursor-pointer
-              px-3 py-1.5 rounded-lg tracking-[-0.01em] transition-colors duration-200
-              text-ui-danger border border-ui-danger/15 bg-ui-danger/5
-              hover:bg-ui-danger/10 ml-2
-              ${pathname.startsWith('/admin') ? 'text-ui-danger' : ''}
+              relative flex items-center gap-1.5 px-3 py-1.5 ml-2 rounded-lg text-[13px] font-semibold
+              border transition
+              ${pathname.startsWith('/admin')
+                ? 'text-rose-500 border-rose-300 bg-rose-50'
+                : 'text-rose-500 border-rose-200 bg-rose-50 hover:bg-rose-100'}
             `}
           >
-            <span className="text-[13px] opacity-80">⚙</span>
+            <span className="text-[13px]">⚙</span>
             Admin
+
             {pathname.startsWith('/admin') && (
-              <div className="absolute bottom-[-2px] left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-ui-danger" />
+              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-rose-500" />
             )}
           </button>
         )}
       </div>
 
-      {/* Right — avatar + logout */}
-      <div className="flex items-center gap-2.5 ml-auto">
+      {/* Right */}
+      <div className="flex items-center gap-2 ml-auto">
+        <NotificationBell />
+
+        {/* User */}
         {user && (
           <div
-            className="flex items-center gap-2 py-[5px] pr-3 pl-1.5 bg-ui-sky/5 border border-ui-sky/12 rounded-[10px] cursor-pointer"
             onClick={() => navigate('/profile')}
+            className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-100 rounded-lg cursor-pointer"
           >
-            {user.imageUrl
-              ? <img src={user.imageUrl} alt="" className="w-[26px] h-[26px] rounded-full border border-ui-sky/30 block" />
-              : (
-                <div
-                  className="w-[26px] h-[26px] rounded-full flex items-center justify-center text-[11px] font-extrabold text-ui-surface"
-                  style={{ background: 'var(--gradient-primary)' }}
-                >
-                  {user.name?.[0]?.toUpperCase()}
-                </div>
-              )
-            }
-            <div className="leading-[1.2]">
-              <div className="text-[12px] font-bold text-ui-bright">{user.name?.split(' ')[0]}</div>
-              <div className="text-[10px] text-ui-dim font-mono tracking-[0.06em]">{user.role}</div>
+            {user.imageUrl ? (
+              <img
+                src={user.imageUrl}
+                alt=""
+                className="w-[26px] h-[26px] rounded-full border border-blue-300"
+              />
+            ) : (
+              <div className="w-[26px] h-[26px] rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-[11px] font-extrabold text-white">
+                {user.name?.[0]?.toUpperCase()}
+              </div>
+            )}
+
+            <div className="leading-tight">
+              <div className="text-[12px] font-bold text-blue-900">
+                {user.name?.split(' ')[0]}
+              </div>
+              <div className="text-[10px] text-gray-500 font-mono tracking-wide">
+                {user.role}
+              </div>
             </div>
           </div>
         )}
 
+        {/* Logout */}
         <button
-          onClick={handleLogout}
-          onMouseEnter={() => setLogoutHovered(true)}
-          onMouseLeave={() => setLogoutHovered(false)}
-          className={`
-            w-8 h-8 rounded-lg border flex items-center justify-center
-            cursor-pointer text-[14px] transition-all duration-200 bg-transparent
-            ${logoutHovered
-              ? 'bg-ui-danger/10 text-ui-danger border-ui-danger/30'
-              : 'text-ui-dim border-ui-sky/12'}
-          `}
+          onClick={() => { logout(); navigate('/login'); }}
+          className="w-8 h-8 flex items-center justify-center border border-gray-200 rounded-lg text-gray-500 hover:text-rose-500 hover:bg-rose-50 hover:border-rose-300 transition"
+          title="Sign out"
         >
           ⏻
         </button>

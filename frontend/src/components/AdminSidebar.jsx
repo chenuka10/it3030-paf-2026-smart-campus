@@ -1,23 +1,26 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import NotificationBell from './NotificationBell';
 
 const ADMIN_SECTIONS = [
-  { label: 'Overview',      path: '/admin',                exact: true, icon: '▦', desc: 'Dashboard hub'   },
-  { label: 'Users',         path: '/admin/users',                       icon: '◉', desc: 'Manage members'  },
-  { label: 'Resources',     path: '/admin/resources',                   icon: '◫', desc: 'Campus resources' },
-  { label: 'Notifications', path: '/admin/notifications',               icon: '◎', desc: 'Send alerts'     },
-  { label: 'Reports',       path: '/admin/reports',                     icon: '◈', desc: 'Analytics & logs' },
+  { label: 'Overview',  path: '/admin',            exact: true, icon: '▦', desc: 'Dashboard hub' },
+  { label: 'Users',     path: '/admin/users',                   icon: '◉', desc: 'Manage members' },
+  { label: 'Resources', path: '/admin/resources',               icon: '◫', desc: 'Campus resources' },
+  { label: 'Reports',   path: '/admin/reports',                 icon: '◈', desc: 'Analytics & logs' },
 ];
 
 export default function AdminSidebar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
 
   const isActive = (item) =>
     item.exact ? pathname === item.path : pathname.startsWith(item.path);
 
-  const handleLogout = () => { logout(); navigate('/login'); };
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   return (
     <aside className="w-[220px] shrink-0 bg-ui-base/60 border-r border-ui-sky/10 backdrop-blur-md flex flex-col min-h-[calc(100vh-60px)] sticky top-[60px]">
@@ -29,6 +32,20 @@ export default function AdminSidebar() {
         </div>
         <div className="text-[13px] font-bold text-ui-bright">
           Management Console
+        </div>
+
+        {/* Real notifications */}
+        <div className="mt-4 flex items-center justify-between">
+          <div>
+            <div className="text-[11px] font-semibold text-ui-muted">
+              Notifications
+            </div>
+            <div className="text-[10px] text-ui-dim/70 font-mono">
+              Live alerts & updates
+            </div>
+          </div>
+
+          <NotificationBell variant="sidebar" />
         </div>
       </div>
 
@@ -65,7 +82,39 @@ export default function AdminSidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="px-5 py-4 border-t border-ui-sky/8">
+      <div className="px-5 py-4 border-t border-ui-sky/8 space-y-3">
+
+        {/* Profile */}
+        {user && (
+          <div
+            onClick={() => navigate('/profile')}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-[10px] bg-ui-sky/6 hover:bg-ui-sky/10 cursor-pointer transition-colors duration-150"
+            title="Go to profile"
+          >
+            {user.imageUrl ? (
+              <img
+                src={user.imageUrl}
+                alt=""
+                className="w-9 h-9 rounded-full object-cover border border-ui-sky/20"
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-[13px] font-extrabold text-white">
+                {user.name?.[0]?.toUpperCase()}
+              </div>
+            )}
+
+            <div className="min-w-0">
+              <div className="text-[12px] font-bold text-ui-bright truncate">
+                {user.name}
+              </div>
+              <div className="text-[10px] text-ui-dim font-mono tracking-wide">
+                {user.role}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Logout */}
         <button
           onClick={handleLogout}
           className="w-full flex items-center gap-2 text-[13px] font-semibold text-ui-danger bg-transparent border-none cursor-pointer px-3 py-2 rounded-[8px] transition-colors duration-150 hover:bg-ui-danger/10"

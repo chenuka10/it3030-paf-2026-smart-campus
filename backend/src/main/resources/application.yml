@@ -48,10 +48,19 @@ spring:
           starttls:
             enable: true
 
+  mvc:
+    async:
+      request-timeout: 1800000
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    time-zone: UTC
+
 app:
   jwt:
     secret: smartcampus_super_secret_key_2026_must_be_long_enough
-    expiration: 86400000 # 1 day in ms
+    expiration: 86400000
   frontend-redirect: http://localhost:3000/oauth-success
   frontend-base-url: http://localhost:3000
   mail:

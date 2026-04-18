@@ -22,25 +22,23 @@ import java.util.List;
 public class SecurityConfig {
 
     private final CustomOAuth2UserService oAuth2UserService;
-    private final OAuth2SuccessHandler oAuth2SuccessHandler;
-    private final JwtAuthFilter jwtAuthFilter;
+    private final OAuth2SuccessHandler    oAuth2SuccessHandler;
+    private final JwtAuthFilter           jwtAuthFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
-            .sessionManagement(s -> s
-                // STATELESS for API calls, but OAuth2 login REQUIRES a session briefly
-                // so we use IF_REQUIRED — the session is created during OAuth2 flow only,
-                // then the JWT takes over for all subsequent API requests
-                .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-            )
+            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                     "/auth/**", "/oauth2/**", "/login/**",
                     "/swagger-ui/**", "/v3/api-docs/**"
                 ).permitAll()
+                // SSE endpoint uses ?token= so Spring Security must not block it
+                // before the JwtAuthFilter runs — permitAll here, @PreAuthorize handles authz
+                .requestMatchers("/api/notifications/stream").permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2Login(oauth -> oauth
@@ -61,6 +59,8 @@ public class SecurityConfig {
         config.setExposedHeaders(List.of("Authorization"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
+        // Required for SSE — browsers need to read the event-stream
+        config.setExposedHeaders(List.of("Content-Type", "Cache-Control", "Connection"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);

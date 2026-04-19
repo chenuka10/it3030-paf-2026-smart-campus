@@ -52,6 +52,12 @@ const SECTIONS = [
     stat: 'checkins',
     statLabel: 'Checked In Today',
   },
+  {
+    label: 'Resource Intelligence',
+    desc:  'Booking utilization, demand peaks, and underused assets',
+    icon: '◍', path: '/admin/reports/resource-utilization',
+    stat: 'resourceIntel', statLabel: 'Bookings (30d)',
+  },
 ];
 
 export default function AdminHub() {
@@ -59,35 +65,39 @@ export default function AdminHub() {
   const [stats, setStats] = useState({});
   const hasFetched = useRef(false);
 
-  useEffect(() => {
-    if (hasFetched.current) return;
-    hasFetched.current = true;
+ useEffect(() => {
+  if (hasFetched.current) return;
+  hasFetched.current = true;
 
-    api.get('/api/users')
-      .then(({ data }) => {
-        setStats((s) => ({ ...s, users: Array.isArray(data) ? data.length : 0 }));
-      })
-      .catch(() => {});
+  api.get('/api/users')
+    .then(({ data }) => {
+      setStats((s) => ({ ...s, users: Array.isArray(data) ? data.length : 0 }));
+    })
+    .catch(console.error);
 
-    api.get('/api/tickets/analytics/resources')
-      .then(({ data }) => {
-        setStats((s) => ({
-          ...s,
-          reports: data?.summary?.affectedResources ?? 0,
-        }));
-      })
-      .catch(() => {});
+  api.get('/api/tickets/analytics/resources')
+    .then(({ data }) => {
+      setStats((s) => ({ ...s, reports: data.summary?.affectedResources ?? 0 }));
+    })
+    .catch(console.error);
 
-    api.get('/api/bookings')
-      .then(({ data }) => {
-        const pending = Array.isArray(data)
-          ? data.filter((booking) => booking.status === 'PENDING').length
-          : 0;
+  api.get('/api/bookings/analytics/resources', { params: { days: 30 } })
+    .then(({ data }) => {
+      setStats((s) => ({ ...s, resourceIntel: data.summary?.totalBookings ?? 0 }));
+    })
+    .catch(console.error);
 
-        setStats((s) => ({ ...s, bookings: pending }));
-      })
-      .catch(() => {});
-  }, []);
+  api.get('/api/bookings')
+    .then(({ data }) => {
+      const pending = Array.isArray(data)
+        ? data.filter((booking) => booking.status === 'PENDING').length
+        : 0;
+
+      setStats((s) => ({ ...s, bookings: pending }));
+    })
+    .catch(console.error);
+}, []);
+
 
   return (
     <Layout adminOnly>

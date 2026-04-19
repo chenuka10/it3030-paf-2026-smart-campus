@@ -3,12 +3,14 @@ import { useAuth } from '../context/AuthContext';
 import NotificationBell from './NotificationBell';
 
 const ADMIN_SECTIONS = [
-  { label: 'Overview', path: '/admin', exact: true, icon: '▦', desc: 'Dashboard hub' },
-  { label: 'Users', path: '/admin/users', icon: '◉', desc: 'Manage members' },
-  { label: 'Resources', path: '/admin/resources', icon: '◫', desc: 'Campus resources' },
-  { label: 'Reports', path: '/admin/reports', icon: '◈', desc: 'Analytics & logs' },
+  { label: 'Overview',  path: '/admin',            exact: true, icon: '▦', desc: 'Dashboard hub' },
+  { label: 'Users',     path: '/admin/users',                   icon: '◉', desc: 'Manage members' },
+  { label: 'Resources', path: '/admin/resources',               icon: '◫', desc: 'Campus resources' },
   { label: 'Bookings', path: '/admin/bookings', icon: '◎', desc: 'Review requests' },
   { label: 'Check-In', path: '/admin/check-in', icon: '▣', desc: 'QR scan & verify' },
+  { label: 'Reports',   path: '/admin/reports', exact: true,    icon: '◈', desc: 'Analytics & logs' },
+  { label: 'Resource IQ', path: '/admin/reports/resource-utilization', exact: true, icon: '◍', desc: 'Booking intelligence' },
+  
 ];
 
 export default function AdminSidebar() {

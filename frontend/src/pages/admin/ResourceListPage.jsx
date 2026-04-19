@@ -8,6 +8,7 @@ const STATUS_STYLES = {
   ACTIVE:         { bg: 'rgba(111,143,114,0.12)', text: 'var(--color-ui-green)',  border: 'rgba(111,143,114,0.25)' },
   OUT_OF_SERVICE: { bg: 'rgba(224,122,95,0.12)',  text: 'var(--color-ui-danger)', border: 'rgba(224,122,95,0.25)'  },
 };
+const RESOURCE_LIST_PATH = "/admin/resources";
 
 export default function ResourceListPage() {
   const { user } = useAuth();
@@ -46,9 +47,20 @@ export default function ResourceListPage() {
       await api.delete(`/api/resources/${id}`);
       setResources(prev => prev.filter(r => r.id !== id));
       showToast('Resource deleted successfully');
+      navigate(RESOURCE_LIST_PATH, { replace: true });
     } catch {
       showToast('Delete failed', 'error');
     }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '—';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
   };
 
   const filtered = resources.filter(r =>

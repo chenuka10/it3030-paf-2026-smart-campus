@@ -6,6 +6,7 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.LocalDate; // ADD THIS IMPORT
 
 @Entity
 @Table(name = "resources")
@@ -66,6 +67,10 @@ public class Resource {
 
     @Column(name = "max_booking_hours", nullable = false)
     private Integer maxBookingHours;
+
+    // ✅ ADD THIS FIELD FOR AVAILABLE DATE
+    @Column(name = "available_date")
+    private LocalDate availableDate;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

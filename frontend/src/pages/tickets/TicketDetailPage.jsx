@@ -245,7 +245,7 @@ const TicketDetailPage = () => {
                   {canUpdateStatus && (
                     <button
                       onClick={() => setShowStatusModal(true)}
-                      className="rounded-xl bg-[linear-gradient(135deg,var(--color-ui-sky),var(--color-ui-green))] px-5 py-3 text-sm font-bold text-ui-base transition hover:opacity-95"
+                      className="rounded-xl bg-ui-sky px-5 py-3 text-sm font-bold text-ui-base transition hover:opacity-95"
                     >
                       Update Status
                     </button>

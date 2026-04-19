@@ -73,7 +73,7 @@ const CommentSection = ({ ticketId, currentUserId }) => {
         <button
           type="submit"
           disabled={submitting || !newComment.trim()}
-          className="rounded-xl bg-[linear-gradient(135deg,var(--color-ui-sky),var(--color-ui-green))] px-5 py-2.5 text-sm font-bold text-ui-base transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-xl bg-ui-sky px-5 py-2.5 text-sm font-bold text-ui-base transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {submitting ? 'Posting...' : 'Post Comment'}
         </button>

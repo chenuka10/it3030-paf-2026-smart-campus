@@ -503,7 +503,7 @@ const TicketForm = ({ onSuccess, onCancel }) => {
                   <button
                     type="button"
                     onClick={handleNextStep}
-                    className="rounded-xl bg-[linear-gradient(135deg,var(--color-ui-sky),var(--color-ui-green))] px-6 py-3 text-sm font-bold text-ui-base transition hover:opacity-95"
+                    className="rounded-xl bg-ui-sky px-6 py-3 text-sm font-bold text-ui-base transition hover:opacity-95"
                   >
                     Continue
                   </button>
@@ -521,7 +521,7 @@ const TicketForm = ({ onSuccess, onCancel }) => {
                     <button
                       type="submit"
                       disabled={loading || loadingResources}
-                      className="rounded-xl bg-[linear-gradient(135deg,var(--color-ui-sky),var(--color-ui-green))] px-6 py-3 text-sm font-bold text-ui-base transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="rounded-xl bg-ui-sky px-6 py-3 text-sm font-bold text-ui-base transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {loading ? 'Creating...' : 'Create Ticket'}
                     </button>

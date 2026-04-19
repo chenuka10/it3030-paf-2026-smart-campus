@@ -20,16 +20,20 @@
   /* =========================
      🖥️ UI SURFACE COLORS (LIGHT THEME)
   ========================= */
---color-ui-base:       #f9fafb;
---color-ui-sky:        #2563eb;
---color-ui-dim:        #6b7280;
---color-ui-muted:      #64748b;
---color-ui-bright:     #111827;
---color-ui-surface:    #1f2937;
---color-ui-danger:     #dc2626;
---color-ui-warn:       #f59e0b;
---color-ui-green:      #16a34a;
---color-ui-live:       #22c55e;
+
+
+  --color-ui-base: #f6f7fb;
+  --color-ui-sky: #315efb;
+  --color-ui-dim: #7b8190;
+  --color-ui-muted: #667085;
+  --color-ui-bright: #101828;
+  --color-ui-surface: #1d2939;
+  --color-ui-danger: #d92d20;
+  --color-ui-warn: #f79009;
+  --color-ui-green: #12b76a;
+  --color-ui-live: #22c55e;
+
+
 
   /* =========================
      🌈 GRADIENTS
@@ -121,4 +125,23 @@
   0%   { box-shadow: 0 0 0 0px   rgba(111, 143, 114, 0.7); }
   70%  { box-shadow: 0 0 0 10px  rgba(111, 143, 114, 0);   }
   100% { box-shadow: 0 0 0 0px   rgba(111, 143, 114, 0);   }
+}
+
+/* ===== CUSTOM SCROLLBAR ===== */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(111, 143, 114, 0.35); /* brand green */
+  border-radius: 999px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(111, 143, 114, 0.6);
 }

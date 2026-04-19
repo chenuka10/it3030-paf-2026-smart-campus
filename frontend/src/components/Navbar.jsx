@@ -49,34 +49,39 @@ export default function Navbar() {
 
         {/* Links */}
         <div className="hidden md:flex items-center gap-1.5 flex-1 ml-2">
-          {NAV_LINKS.map((link) => {
-            const active = isActive(link.path);
+          {NAV_LINKS
+            .filter((link) => {
+              // hide bookings for ADMIN and TECHNICIAN
+              if (link.path === '/bookings' && user?.role !== 'USER') {
+                return false;
+              }
+              return true;
+            })
+            .map((link) => {
+              const active = isActive(link.path);
 
-            return (
-              <button
-                key={link.path}
-                onClick={() => navigate(link.path)}
-                className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-[13px] font-semibold transition border
-                  ${
-                    active
+              return (
+                <button
+                  key={link.path}
+                  onClick={() => navigate(link.path)}
+                  className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-[13px] font-semibold transition border
+          ${active
                       ? 'bg-sky-50 text-sky-700 border-sky-200 shadow-sm'
                       : 'bg-transparent text-slate-600 border-transparent hover:bg-slate-100 hover:text-slate-900'
-                  }`}
-              >
-                <span className="text-[13px] opacity-80">{link.icon}</span>
-                {link.label}
-              </button>
-            );
-          })}
-
+                    }`}
+                >
+                  <span className="text-[13px] opacity-80">{link.icon}</span>
+                  {link.label}
+                </button>
+              );
+            })}
           {user?.role === 'ADMIN' && (
             <button
               onClick={() => navigate('/admin')}
               className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-[13px] font-semibold transition border ml-1
-                ${
-                  pathname.startsWith('/admin')
-                    ? 'bg-rose-50 text-rose-600 border-rose-200 shadow-sm'
-                    : 'bg-white text-rose-600 border-rose-200 hover:bg-rose-50'
+                ${pathname.startsWith('/admin')
+                  ? 'bg-rose-50 text-rose-600 border-rose-200 shadow-sm'
+                  : 'bg-white text-rose-600 border-rose-200 hover:bg-rose-50'
                 }`}
             >
               <span className="text-[13px]">⚙</span>
@@ -112,9 +117,8 @@ export default function Navbar() {
                 </div>
                 <div className="mt-1">
                   <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide ${
-                      ROLE_STYLES[user.role] || ROLE_STYLES.USER
-                    }`}
+                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide ${ROLE_STYLES[user.role] || ROLE_STYLES.USER
+                      }`}
                   >
                     {user.role}
                   </span>

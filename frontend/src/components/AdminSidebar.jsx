@@ -3,14 +3,13 @@ import { useAuth } from '../context/AuthContext';
 import NotificationBell from './NotificationBell';
 
 const ADMIN_SECTIONS = [
-  { label: 'Overview',  path: '/admin',            exact: true, icon: '▦', desc: 'Dashboard hub' },
-  { label: 'Users',     path: '/admin/users',                   icon: '◉', desc: 'Manage members' },
-  { label: 'Resources', path: '/admin/resources',               icon: '◫', desc: 'Campus resources' },
+  { label: 'Overview', path: '/admin', exact: true, icon: '▦', desc: 'Dashboard hub' },
+  { label: 'Users', path: '/admin/users', icon: '◉', desc: 'Manage members' },
+  { label: 'Resources', path: '/admin/resources', icon: '◫', desc: 'Campus resources' },
   { label: 'Bookings', path: '/admin/bookings', icon: '◎', desc: 'Review requests' },
   { label: 'Check-In', path: '/admin/check-in', icon: '▣', desc: 'QR scan & verify' },
-  { label: 'Reports',   path: '/admin/reports', exact: true,    icon: '◈', desc: 'Analytics & logs' },
+  { label: 'Reports', path: '/admin/reports', exact: true, icon: '◈', desc: 'Analytics & logs' },
   { label: 'Resource IQ', path: '/admin/reports/resource-utilization', exact: true, icon: '◍', desc: 'Booking intelligence' },
-  
 ];
 
 export default function AdminSidebar() {
@@ -27,24 +26,19 @@ export default function AdminSidebar() {
   };
 
   return (
-    <aside className="w-[220px] shrink-0 bg-ui-base/60 border-r border-ui-sky/10 backdrop-blur-md flex flex-col h-[calc(100vh-60px)] sticky top-[60px] overflow-hidden">
-
-      
-
+    <aside className="w-[220px] shrink-0 bg-ui-base/60 border-r border-ui-sky/10 backdrop-blur-md flex flex-col h-[calc(100vh-60px)] sticky top-[60px] overflow-visible relative z-40">
       {/* Header */}
-      <div className="px-5 pt-6 pb-4 border-b border-ui-sky/8 shrink-0">
-      
-      
-
+      <div className="px-5 pt-6 pb-4 border-b border-ui-sky/8 shrink-0 relative z-50 overflow-visible">
         <div className="text-[9px] font-bold tracking-[0.18em] text-ui-danger font-mono mb-1">
           ADMIN PANEL
         </div>
+
         <div className="text-[13px] font-bold text-ui-bright">
           Management Console
         </div>
 
         {/* Real notifications */}
-        <div className="mt-4 flex items-center justify-between">
+        <div className="mt-4 flex items-center justify-between relative overflow-visible">
           <div>
             <div className="text-[11px] font-semibold text-ui-muted">
               Notifications
@@ -54,16 +48,18 @@ export default function AdminSidebar() {
             </div>
           </div>
 
-          <NotificationBell variant="sidebar" />
+          <div className="relative z-[9999] overflow-visible">
+            <NotificationBell variant="sidebar" />
+          </div>
         </div>
       </div>
 
       {/* Scrollable middle section */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden">
-        {/* Nav */}
+      <div className="flex-1 overflow-y-auto overflow-x-visible relative">
         <nav className="px-2.5 py-3 flex flex-col gap-0.5">
-          {ADMIN_SECTIONS.map(item => {
+          {ADMIN_SECTIONS.map((item) => {
             const active = isActive(item);
+
             return (
               <button
                 key={item.path}
@@ -71,14 +67,23 @@ export default function AdminSidebar() {
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-[10px] relative border-none cursor-pointer text-left transition-colors duration-150 w-full
                   ${active ? 'bg-ui-sky/8' : 'bg-transparent hover:bg-ui-sky/5'}`}
               >
-                <span className={`text-[16px] shrink-0 transition-colors duration-200 ${active ? 'text-ui-sky' : 'text-ui-dim'}`}>
+                <span
+                  className={`text-[16px] shrink-0 transition-colors duration-200 ${
+                    active ? 'text-ui-sky' : 'text-ui-dim'
+                  }`}
+                >
                   {item.icon}
                 </span>
 
                 <div className="flex-1 min-w-0">
-                  <div className={`text-[13px] font-semibold tracking-[-0.01em] ${active ? 'text-ui-bright' : 'text-ui-muted'}`}>
+                  <div
+                    className={`text-[13px] font-semibold tracking-[-0.01em] ${
+                      active ? 'text-ui-bright' : 'text-ui-muted'
+                    }`}
+                  >
                     {item.label}
                   </div>
+
                   <div className="text-[10px] text-ui-dim/70 mt-px font-mono">
                     {item.desc}
                   </div>
@@ -93,10 +98,8 @@ export default function AdminSidebar() {
         </nav>
       </div>
 
-      {/* Footer — always pinned to bottom */}
+      {/* Footer */}
       <div className="px-5 py-4 border-t border-ui-sky/8 space-y-3 shrink-0">
-
-        {/* Profile */}
         {user && (
           <div
             onClick={() => navigate('/profile')}
@@ -126,7 +129,6 @@ export default function AdminSidebar() {
           </div>
         )}
 
-        {/* Logout */}
         <button
           onClick={handleLogout}
           className="w-full flex items-center gap-2 text-[13px] font-semibold text-ui-danger bg-transparent border-none cursor-pointer px-3 py-2 rounded-[8px] transition-colors duration-150 hover:bg-ui-danger/10"

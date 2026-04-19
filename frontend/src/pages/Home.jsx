@@ -139,7 +139,7 @@ export default function Home() {
                   <div className="absolute -inset-4 rounded-[36px] bg-ui-sky/10 blur-2xl" />
                   <div className="relative overflow-hidden rounded-[34px] border border-ui-sky/15 bg-ui-base/80 p-4 shadow-[0_25px_60px_rgba(0,0,0,0.12)] backdrop-blur">
                     <img
-                      src="https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=1400&q=80"
+                      src="https://thebossmagazine.com/wp-content/uploads/2021/06/smartcampus-scaled.jpg"
                       alt="Campus"
                       className="h-[460px] w-full rounded-[28px] object-cover"
                     />
@@ -198,7 +198,7 @@ export default function Home() {
               <div className="grid items-center gap-14 lg:grid-cols-2">
                 <div className="overflow-hidden rounded-[34px] border border-ui-sky/15 bg-ui-base/80 shadow-[0_20px_50px_rgba(0,0,0,0.08)]">
                   <img
-                    src="https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1400&q=80"
+                    src="https://api.hub.jhu.edu/factory/sites/default/files/styles/hub_large/public/2025-03/Rendering%203.png"
                     alt="Students on campus"
                     className="h-[520px] w-full object-cover"
                   />

@@ -3,17 +3,18 @@ import { AuthProvider } from './context/AuthContext';
 
 // Public
 import Login from './pages/Login';
+import Register from './pages/Register';
 import OAuthSuccess from './pages/OAuthSuccess';
 
 // Authenticated
 import Home from './pages/Home';
 import Profile from './pages/Profile';
-import Resources from './pages/Resources';  // ← ADD THIS IMPORT
+import Resources from './pages/Resources';
 import Bookings from './pages/Bookings';
-//import TicketForm from './components/tickets/TicketForm'; 
 import TicketListPage from './pages/tickets/TicketListPage';
 import CreateTicket from './pages/tickets/CreateTicket';
 import TicketDetailPage from './pages/tickets/TicketDetailPage';
+
 // Admin
 import AdminHub from './pages/admin/AdminHub';
 import AdminUsers from './pages/admin/AdminUsers';
@@ -41,6 +42,7 @@ function App() {
         <Routes>
           {/* Public */}
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
           <Route path="/oauth-success" element={<OAuthSuccess />} />
 
           {/* Root decides landing by role */}
@@ -54,7 +56,8 @@ function App() {
           <Route path="/tickets" element={<TicketListPage />} />
           <Route path="/tickets/new" element={<CreateTicket />} />
           <Route path="/tickets/:id" element={<TicketDetailPage />} />
-          {/* Admin routes (sidebar appears) */}
+
+          {/* Admin routes */}
           <Route path="/admin" element={<AdminHub />} />
           <Route path="/admin/users" element={<AdminUsers />} />
           <Route path="/admin/resources" element={<ResourceListPage />} />

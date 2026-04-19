@@ -27,18 +27,20 @@ public class User {
     @Enumerated(EnumType.STRING)
     private Role role;
 
+    // OAuth2 fields — null for manual accounts
     private String provider;
     private String providerId;
     private String imageUrl;
 
-    // New profile fields
-    @Column(name = "phone")
+    // Manual login — null for OAuth2 accounts (BCrypt hashed when set)
+    private String password;
+
+    // Extended profile
     private String phone;
 
-    @Column(name = "bio")
+    @Column(length = 300)
     private String bio;
 
-    @Column(name = "department")
     private String department;
 
     @CreationTimestamp

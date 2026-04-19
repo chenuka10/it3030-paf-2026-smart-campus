@@ -37,15 +37,94 @@ export default function AddResourcePage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const validateForm = () => {
+    // Name validation
+    if (!formData.name.trim()) {
+      setError("Resource name is required");
+      return false;
+    }
+
+    // Location validation
+    if (!formData.location.trim()) {
+      setError("Location is required");
+      return false;
+    }
+
+    // Capacity validation
+    if (formData.capacity !== "") {
+      const capacityNum = Number(formData.capacity);
+      if (isNaN(capacityNum) || capacityNum < 0 || !Number.isInteger(capacityNum)) {
+        setError("Capacity must be a positive whole number");
+        return false;
+      }
+      if (capacityNum > 9999) {
+        setError("Capacity cannot exceed 9999");
+        return false;
+      }
+    }
+
+    // Time validation
+    if (formData.availableFrom >= formData.availableTo) {
+      setError("Available To time must be after Available From time");
+      return false;
+    }
+
+    // Max booking hours validation
+    const maxHours = Number(formData.maxBookingHours);
+    if (isNaN(maxHours) || maxHours < 1) {
+      setError("Max booking hours must be at least 1");
+      return false;
+    }
+    if (maxHours > 72) {
+      setError("Max booking hours cannot exceed 72");
+      return false;
+    }
+    if (!Number.isInteger(maxHours)) {
+      setError("Max booking hours must be a whole number");
+      return false;
+    }
+
+    // Description validation (optional but limit length)
+    if (formData.description && formData.description.length > 500) {
+      setError("Description cannot exceed 500 characters");
+      return false;
+    }
+
+    // Name length validation
+    if (formData.name.length > 100) {
+      setError("Resource name cannot exceed 100 characters");
+      return false;
+    }
+
+    // Location length validation
+    if (formData.location.length > 200) {
+      setError("Location cannot exceed 200 characters");
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true); setError(null); setSuccess(false);
+    
+    // Clear previous errors
+    setError(null);
+    
+    // Validate form before submission
+    if (!validateForm()) {
+      setLoading(false);
+      return;
+    }
+    
+    setLoading(true);
+    
     try {
       const payload = {
-        name:            formData.name,
+        name:            formData.name.trim(),
         type:            formData.type,
-        description:     formData.description,
-        location:        formData.location,
+        description:     formData.description ? formData.description.trim() : "",
+        location:        formData.location.trim(),
         capacity:        formData.capacity ? Number(formData.capacity) : null,
         status:          formData.status,
         availableFrom:   formData.availableFrom,
@@ -104,7 +183,7 @@ export default function AddResourcePage() {
         {/* Error Message */}
         {error && (
           <div className="bg-ui-danger/10 border border-ui-danger/30 rounded-xl text-ui-danger px-5 py-3 mb-6 text-[14px]">
-            {error}
+            ❌ {error}
           </div>
         )}
 
@@ -122,8 +201,12 @@ export default function AddResourcePage() {
                 type="text" name="name" required
                 value={formData.name} onChange={handleChange}
                 placeholder="e.g., A101"
+                maxLength="100"
                 className={inputClass}
               />
+              <span className="text-[11px] text-ui-muted">
+                {formData.name.length}/100 characters
+              </span>
             </div>
 
             {/* Type */}
@@ -133,6 +216,7 @@ export default function AddResourcePage() {
                 name="type"
                 value={formData.type} onChange={handleChange}
                 className={inputClass}
+                required
               >
                 {RESOURCE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
@@ -144,9 +228,13 @@ export default function AddResourcePage() {
               <textarea
                 name="description" rows={4}
                 value={formData.description} onChange={handleChange}
-                placeholder="Describe the resource..."
+                placeholder="Describe the resource... (max 500 characters)"
+                maxLength="500"
                 className={`${inputClass} resize-y`}
               />
+              <span className="text-[11px] text-ui-muted">
+                {formData.description.length}/500 characters
+              </span>
             </div>
 
             {/* Location */}
@@ -156,8 +244,12 @@ export default function AddResourcePage() {
                 type="text" name="location" required
                 value={formData.location} onChange={handleChange}
                 placeholder="e.g., Building C, Floor 1"
+                maxLength="200"
                 className={inputClass}
               />
+              <span className="text-[11px] text-ui-muted">
+                {formData.location.length}/200 characters
+              </span>
             </div>
 
             {/* Capacity */}
@@ -167,8 +259,14 @@ export default function AddResourcePage() {
                 type="number" name="capacity"
                 value={formData.capacity} onChange={handleChange}
                 placeholder="e.g., 60"
+                min="0"
+                max="9999"
+                step="1"
                 className={inputClass}
               />
+              <span className="text-[11px] text-ui-muted">
+                Positive whole number (0-9999)
+              </span>
             </div>
 
             {/* Status */}
@@ -190,6 +288,7 @@ export default function AddResourcePage() {
                 type="time" name="availableFrom"
                 value={formData.availableFrom} onChange={handleChange}
                 className={inputClass}
+                required
               />
             </div>
 
@@ -200,18 +299,28 @@ export default function AddResourcePage() {
                 type="time" name="availableTo"
                 value={formData.availableTo} onChange={handleChange}
                 className={inputClass}
+                required
               />
+              <span className="text-[11px] text-ui-muted">
+                Must be after "Available From" time
+              </span>
             </div>
 
             {/* Max Booking Hours */}
             <div className="flex flex-col gap-2">
-              <label className={labelClass}>MAX BOOKING HOURS</label>
+              <label className={labelClass}>MAX BOOKING HOURS *</label>
               <input
                 type="number" name="maxBookingHours" required
                 value={formData.maxBookingHours} onChange={handleChange}
                 placeholder="e.g., 2"
+                min="1"
+                max="72"
+                step="1"
                 className={inputClass}
               />
+              <span className="text-[11px] text-ui-muted">
+                1-72 hours
+              </span>
             </div>
 
           </div>

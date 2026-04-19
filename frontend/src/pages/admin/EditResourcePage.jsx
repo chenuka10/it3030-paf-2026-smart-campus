@@ -4,7 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import api from "../../api/axios";
 import Layout from "../../components/Layout";
 
-const RESOURCE_TYPES  = ["LECTURE_HALL", "LAB", "MEETING_ROOM", "EQUIPMENT", "OUTDOOR", "AUDITORIUM", "CLASSROOM", "SPORTS"];
+const RESOURCE_TYPES  = ["LECTURE_ROOM", "LAB", "MEETING_ROOM", "EQUIPMENT", "EVENT_SPACE", "SPORTS"];
 const RESOURCE_STATUS = ["ACTIVE", "OUT_OF_SERVICE"];
 const RESOURCE_LIST_PATH = "/admin/resources";
 
@@ -48,13 +48,93 @@ export default function EditResourcePage() {
     } finally { setLoading(false); }
   };
 
+  const validateForm = () => {
+    // Name validation
+    if (!formData.name.trim()) {
+      setError("Resource name is required");
+      return false;
+    }
+
+    // Location validation (optional but validate if provided)
+    if (formData.location && formData.location.trim().length > 200) {
+      setError("Location cannot exceed 200 characters");
+      return false;
+    }
+
+    // Capacity validation
+    if (formData.capacity !== "") {
+      const capacityNum = Number(formData.capacity);
+      if (isNaN(capacityNum) || capacityNum < 0 || !Number.isInteger(capacityNum)) {
+        setError("Capacity must be a positive whole number");
+        return false;
+      }
+      if (capacityNum > 9999) {
+        setError("Capacity cannot exceed 9999");
+        return false;
+      }
+    }
+
+    // Time validation (only if both times are provided)
+    if (formData.availableFrom && formData.availableTo) {
+      if (formData.availableFrom >= formData.availableTo) {
+        setError("Available To time must be after Available From time");
+        return false;
+      }
+    }
+
+    // Max booking hours validation
+    if (formData.maxBookingHours !== "") {
+      const maxHours = Number(formData.maxBookingHours);
+      if (isNaN(maxHours) || maxHours < 1) {
+        setError("Max booking hours must be at least 1");
+        return false;
+      }
+      if (maxHours > 72) {
+        setError("Max booking hours cannot exceed 72");
+        return false;
+      }
+      if (!Number.isInteger(maxHours)) {
+        setError("Max booking hours must be a whole number");
+        return false;
+      }
+    }
+
+    // Description validation (optional but limit length)
+    if (formData.description && formData.description.length > 500) {
+      setError("Description cannot exceed 500 characters");
+      return false;
+    }
+
+    // Name length validation
+    if (formData.name.length > 100) {
+      setError("Resource name cannot exceed 100 characters");
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSaving(true); setError(null);
+    
+    // Clear previous errors
+    setError(null);
+    
+    // Validate form before submission
+    if (!validateForm()) {
+      setSaving(false);
+      return;
+    }
+    
+    setSaving(true);
+    
     try {
       const payload = {
         ...formData,
-        capacity:        formData.capacity        ? Number(formData.capacity)        : null,
+        name:            formData.name.trim(),
+        description:     formData.description ? formData.description.trim() : "",
+        location:        formData.location ? formData.location.trim() : "",
+        capacity:        formData.capacity ? Number(formData.capacity) : null,
         maxBookingHours: formData.maxBookingHours ? Number(formData.maxBookingHours) : null,
       };
       await api.put(`/api/resources/${id}`, payload);
@@ -117,7 +197,7 @@ export default function EditResourcePage() {
         {/* Error */}
         {error && (
           <div className="bg-ui-danger/10 border border-ui-danger/30 rounded-xl text-ui-danger px-5 py-3 mb-6 text-[14px]">
-            {error}
+            ❌ {error}
           </div>
         )}
 
@@ -135,8 +215,12 @@ export default function EditResourcePage() {
                 type="text" required
                 value={formData.name} onChange={set('name')}
                 placeholder="e.g., Main Lecture Hall A"
+                maxLength="100"
                 className={inputClass}
               />
+              <span className="text-[11px] text-ui-muted">
+                {formData.name.length}/100 characters
+              </span>
             </div>
 
             {/* Type */}
@@ -157,9 +241,13 @@ export default function EditResourcePage() {
               <textarea
                 rows={4}
                 value={formData.description} onChange={set('description')}
-                placeholder="Describe the resource..."
+                placeholder="Describe the resource... (max 500 characters)"
+                maxLength="500"
                 className={`${inputClass} resize-y`}
               />
+              <span className="text-[11px] text-ui-muted">
+                {formData.description.length}/500 characters
+              </span>
             </div>
 
             {/* Location */}
@@ -169,8 +257,12 @@ export default function EditResourcePage() {
                 type="text"
                 value={formData.location} onChange={set('location')}
                 placeholder="e.g., Building C, Floor 1"
+                maxLength="200"
                 className={inputClass}
               />
+              <span className="text-[11px] text-ui-muted">
+                {formData.location.length}/200 characters
+              </span>
             </div>
 
             {/* Capacity */}
@@ -180,8 +272,14 @@ export default function EditResourcePage() {
                 type="number"
                 value={formData.capacity} onChange={set('capacity')}
                 placeholder="e.g., 60"
+                min="0"
+                max="9999"
+                step="1"
                 className={inputClass}
               />
+              <span className="text-[11px] text-ui-muted">
+                Positive whole number (0-9999)
+              </span>
             </div>
 
             {/* Status */}
@@ -210,6 +308,11 @@ export default function EditResourcePage() {
                 value={formData.availableTo || ""} onChange={set('availableTo')}
                 className={inputClass}
               />
+              {formData.availableFrom && formData.availableTo && (
+                <span className="text-[11px] text-ui-muted">
+                  Must be after "Available From" time
+                </span>
+              )}
             </div>
 
             {/* Max Booking Hours */}
@@ -219,8 +322,14 @@ export default function EditResourcePage() {
                 type="number"
                 value={formData.maxBookingHours} onChange={set('maxBookingHours')}
                 placeholder="e.g., 4"
+                min="1"
+                max="72"
+                step="1"
                 className={inputClass}
               />
+              <span className="text-[11px] text-ui-muted">
+                1-72 hours
+              </span>
             </div>
 
           </div>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout';
 import CreateBookingModal from '../components/bookings/CreateBookingModal';
+import EditBookingModal from '../components/bookings/EditBookingModal';
 import ViewBookingDetailsModal from '../components/bookings/BookingDetailsModal';
 import { cancelBooking, getMyBookings } from '../api/bookingApi';
 
@@ -74,6 +75,11 @@ const isPastWithoutCheckIn = (booking) => {
   );
 };
 
+const isEditableBooking = (booking) => {
+  if (!booking) return false;
+  return booking.status === 'PENDING';
+};
+
 export default function Bookings() {
   const [tab, setTab] = useState('ALL');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -87,9 +93,17 @@ export default function Bookings() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState(null);
 
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedBookingForEdit, setSelectedBookingForEdit] = useState(null);
+
   const handleOpenDetails = (bookingId) => {
     setSelectedBookingId(bookingId);
     setShowDetailsModal(true);
+  };
+
+  const handleOpenEdit = (booking) => {
+    setSelectedBookingForEdit(booking);
+    setShowEditModal(true);
   };
 
   const showToast = (msg, type = 'success') => {
@@ -217,7 +231,8 @@ export default function Bookings() {
 
               <p className="text-[15px] text-ui-muted mt-3 leading-[1.7] max-w-[680px]">
                 Create new booking requests, track your latest submissions, manage
-                upcoming reservations, and monitor completed or missed bookings.
+                upcoming reservations, update pending requests, and monitor completed
+                or missed bookings.
               </p>
 
               <div className="flex flex-wrap items-center gap-2.5 mt-5">
@@ -327,6 +342,7 @@ export default function Bookings() {
                     booking={booking}
                     onCancel={handleCancelBooking}
                     onViewDetails={handleOpenDetails}
+                    onEdit={handleOpenEdit}
                     cancelling={actionLoadingId === booking.id}
                   />
                 ))
@@ -456,6 +472,7 @@ export default function Bookings() {
                 booking={booking}
                 onCancel={handleCancelBooking}
                 onViewDetails={handleOpenDetails}
+                onEdit={handleOpenEdit}
                 cancelling={actionLoadingId === booking.id}
               />
             ))
@@ -477,6 +494,22 @@ export default function Bookings() {
           onSuccess={() => {
             showToast('Booking created successfully.');
             fetchBookings();
+          }}
+        />
+      )}
+
+      {showEditModal && selectedBookingForEdit && (
+        <EditBookingModal
+          booking={selectedBookingForEdit}
+          onClose={() => {
+            setShowEditModal(false);
+            setSelectedBookingForEdit(null);
+          }}
+          onSuccess={() => {
+            showToast('Booking updated successfully.');
+            fetchBookings();
+            setShowEditModal(false);
+            setSelectedBookingForEdit(null);
           }}
         />
       )}
@@ -550,10 +583,11 @@ function TabButton({ active, onClick, children }) {
   );
 }
 
-function BookingCard({ booking, onCancel, onViewDetails, cancelling }) {
+function BookingCard({ booking, onCancel, onViewDetails, onEdit, cancelling }) {
   const statusStyle = STATUS_STYLES[booking.status] || STATUS_STYLES.PENDING;
   const checkedIn = !!booking.checkedIn;
   const missed = isPastWithoutCheckIn(booking);
+  const canEdit = isEditableBooking(booking);
 
   return (
     <div
@@ -646,6 +680,15 @@ function BookingCard({ booking, onCancel, onViewDetails, cancelling }) {
           >
             View Details
           </button>
+
+          {canEdit && (
+            <button
+              onClick={() => onEdit(booking)}
+              className="px-[16px] py-[10px] rounded-[10px] border border-ui-green/20 bg-ui-green/8 text-ui-green text-[13px] font-semibold transition-all duration-200 hover:bg-ui-green/12 hover:border-ui-green/30"
+            >
+              Edit
+            </button>
+          )}
 
           {booking.status === 'PENDING' && (
             <button

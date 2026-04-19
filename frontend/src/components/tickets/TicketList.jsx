@@ -76,7 +76,7 @@ const TicketList = ({ tickets, loading, onTicketClick, onCreateClick, canCreate 
             {canCreate && (
               <button
                 onClick={onCreateClick}
-                className="rounded-xl bg-[linear-gradient(135deg,var(--color-ui-sky),var(--color-ui-green))] px-5 py-3 text-sm font-bold text-ui-base transition hover:opacity-95"
+                className="rounded-xl bg-ui-sky px-5 py-3 text-sm font-bold text-ui-base transition hover:opacity-95"
               >
                 Create Ticket
               </button>
@@ -185,7 +185,7 @@ const TicketList = ({ tickets, loading, onTicketClick, onCreateClick, canCreate 
           ) : canCreate ? (
             <button
               onClick={onCreateClick}
-              className="mt-5 rounded-xl bg-[linear-gradient(135deg,var(--color-ui-sky),var(--color-ui-green))] px-5 py-3 text-sm font-bold text-ui-base transition hover:opacity-95"
+              className="mt-5 rounded-xl bg-ui-sky px-5 py-3 text-sm font-bold text-ui-base transition hover:opacity-95"
             >
               Create Ticket
             </button>

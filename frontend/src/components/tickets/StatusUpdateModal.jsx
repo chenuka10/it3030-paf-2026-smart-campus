@@ -190,7 +190,7 @@ const StatusUpdateModal = ({ ticket, onClose, onSuccess }) => {
             <button
               type="submit"
               disabled={!canSubmit}
-              className="flex-1 rounded-xl bg-[linear-gradient(135deg,var(--color-ui-sky),var(--color-ui-green))] py-3 text-sm font-bold text-ui-base transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex-1 rounded-xl bg-ui-sky py-3 text-sm font-bold text-ui-base transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? 'Updating...' : 'Update Status'}
             </button>

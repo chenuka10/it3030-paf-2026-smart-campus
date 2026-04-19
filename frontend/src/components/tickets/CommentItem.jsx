@@ -90,7 +90,7 @@ const CommentItem = ({ comment, currentUserId, onUpdate, onDelete }) => {
             <button
               onClick={handleSave}
               disabled={loading || !editText.trim()}
-              className="rounded-lg bg-[linear-gradient(135deg,var(--color-ui-sky),var(--color-ui-green))] px-3 py-1.5 text-xs font-bold text-ui-base transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-lg bg-ui-sky px-3 py-1.5 text-xs font-bold text-ui-base transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? 'Saving...' : 'Save'}
             </button>

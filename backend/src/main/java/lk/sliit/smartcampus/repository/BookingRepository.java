@@ -51,5 +51,24 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             @Param("statuses") List<Booking.BookingStatus> statuses
     );
 
+    @Query("""
+            SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END
+            FROM Booking b
+            WHERE b.resource.id = :resourceId
+              AND b.bookingDate = :bookingDate
+              AND b.status IN :statuses
+              AND b.id <> :bookingId
+              AND :startTime < b.endTime
+              AND :endTime > b.startTime
+            """)
+    boolean existsOverlappingBookingExcludingId(
+            @Param("bookingId") Long bookingId,
+            @Param("resourceId") Long resourceId,
+            @Param("bookingDate") LocalDate bookingDate,
+            @Param("startTime") LocalTime startTime,
+            @Param("endTime") LocalTime endTime,
+            @Param("statuses") List<Booking.BookingStatus> statuses
+    );
+
     Optional<Booking> findByQrToken(String qrToken);
 }

@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Navbar from './Navbar';
 import AdminSidebar from './AdminSidebar';
+import Footer from './Footer';
 
 export default function Layout({ children, adminOnly = false }) {
   const { user, loading } = useAuth();
@@ -29,30 +30,31 @@ export default function Layout({ children, adminOnly = false }) {
   if (adminOnly && user.role !== 'ADMIN') return null;
 
   return (
-  <div className="min-h-screen bg-ui-base flex flex-col">
+    <div className="min-h-screen bg-slate-50 flex flex-col">
+      <Navbar />
 
-    <Navbar />
+      <div className="flex flex-1">
+        {isAdminPage && <AdminSidebar />}
 
-    <div className="flex flex-1">
+        <main className="flex-1 min-w-0 flex flex-col">
+          <div className="flex-1">
+            {children}
+          </div>
 
-      {isAdminPage && <AdminSidebar />}
-
-      <main className="flex-1 min-w-0">
-        {children}
-      </main>
-
+          {!isAdminPage && <Footer />}
+        </main>
+      </div>
     </div>
-  </div>
-);
+  );
 }
 
 function Spinner() {
   return (
-    <div className="min-h-screen bg-ui-base flex items-center justify-center">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
       <div
-        className="w-8 h-8 rounded-full border-2 border-ui-sky/15"
+        className="w-8 h-8 rounded-full border-2 border-sky-200"
         style={{
-          borderTopColor: 'var(--color-ui-sky)',
+          borderTopColor: '#0ea5e9',
           animation: 'spin 0.8s linear infinite',
         }}
       />

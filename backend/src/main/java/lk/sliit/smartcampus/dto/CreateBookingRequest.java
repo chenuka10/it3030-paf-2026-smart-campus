@@ -27,6 +27,6 @@ public class CreateBookingRequest {
     private String purpose;
 
     @NotNull
-    @Min(1)
+    @Min(0)
     private Integer attendeesCount;
 }

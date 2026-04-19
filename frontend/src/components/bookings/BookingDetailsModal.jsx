@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { cancelBooking, getBookingById } from '../../api/bookingApi';
+import QRCode from 'qrcode';
 
 const STATUS_STYLES = {
     APPROVED: {
@@ -85,6 +86,28 @@ export default function BookingDetailsModal({
     const [loading, setLoading] = useState(true);
     const [pageError, setPageError] = useState('');
     const [cancelling, setCancelling] = useState(false);
+    const [generatedQrSrc, setGeneratedQrSrc] = useState('');
+    useEffect(() => {
+        const generateQr = async () => {
+            if (!booking?.qrToken) {
+                setGeneratedQrSrc('');
+                return;
+            }
+
+            try {
+                const url = await QRCode.toDataURL(booking.qrToken, {
+                    width: 256,
+                    margin: 2,
+                });
+                setGeneratedQrSrc(url);
+            } catch (err) {
+                console.error('Failed to generate QR image:', err);
+                setGeneratedQrSrc('');
+            }
+        };
+
+        generateQr();
+    }, [booking?.qrToken]);
 
     useEffect(() => {
         const fetchDetails = async () => {
@@ -135,14 +158,15 @@ export default function BookingDetailsModal({
         if (booking.qrCodeDataUrl) return booking.qrCodeDataUrl;
         if (booking.qrCodeUrl) return booking.qrCodeUrl;
         if (booking.qrCodeBase64) return `data:image/png;base64,${booking.qrCodeBase64}`;
+        if (generatedQrSrc) return generatedQrSrc;
 
         return '';
-    }, [booking]);
+    }, [booking, generatedQrSrc]);
 
     const canShowQr =
         booking &&
         booking.status === 'APPROVED' &&
-        (qrImageSrc || booking.qrToken);
+        !!qrImageSrc;
 
     const handleDownloadQr = () => {
         if (!booking) return;
@@ -331,24 +355,13 @@ export default function BookingDetailsModal({
                                 <SectionCard title="QR Access">
                                     {canShowQr ? (
                                         <>
-                                            {qrImageSrc ? (
-                                                <div className="rounded-[14px] border border-ui-sky/10 bg-white p-4 flex items-center justify-center">
-                                                    <img
-                                                        src={qrImageSrc}
-                                                        alt="Booking QR"
-                                                        className="w-[220px] h-[220px] object-contain"
-                                                    />
-                                                </div>
-                                            ) : (
-                                                <div className="rounded-[12px] border border-ui-sky/10 bg-ui-base px-4 py-4">
-                                                    <div className="text-[12px] font-bold text-ui-sky mb-2">
-                                                        QR Token Available
-                                                    </div>
-                                                    <div className="text-[13px] text-ui-muted break-all">
-                                                        {booking.qrToken}
-                                                    </div>
-                                                </div>
-                                            )}
+                                            <div className="rounded-[14px] border border-ui-sky/10 bg-white p-4 flex items-center justify-center">
+                                                <img
+                                                    src={qrImageSrc}
+                                                    alt="Booking QR"
+                                                    className="w-[220px] h-[220px] object-contain"
+                                                />
+                                            </div>
 
                                             <div className="flex flex-col gap-2 mt-4">
                                                 <button

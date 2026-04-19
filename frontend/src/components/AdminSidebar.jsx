@@ -3,10 +3,12 @@ import { useAuth } from '../context/AuthContext';
 import NotificationBell from './NotificationBell';
 
 const ADMIN_SECTIONS = [
-  { label: 'Overview',  path: '/admin',            exact: true, icon: '▦', desc: 'Dashboard hub' },
-  { label: 'Users',     path: '/admin/users',                   icon: '◉', desc: 'Manage members' },
-  { label: 'Resources', path: '/admin/resources',               icon: '◫', desc: 'Campus resources' },
-  { label: 'Reports',   path: '/admin/reports',                 icon: '◈', desc: 'Analytics & logs' },
+  { label: 'Overview', path: '/admin', exact: true, icon: '▦', desc: 'Dashboard hub' },
+  { label: 'Users', path: '/admin/users', icon: '◉', desc: 'Manage members' },
+  { label: 'Resources', path: '/admin/resources', icon: '◫', desc: 'Campus resources' },
+  { label: 'Reports', path: '/admin/reports', icon: '◈', desc: 'Analytics & logs' },
+  { label: 'Bookings', path: '/admin/bookings', icon: '◎', desc: 'Review requests' },
+  { label: 'Check-In', path: '/admin/check-in', icon: '▣', desc: 'QR scan & verify' },
 ];
 
 export default function AdminSidebar() {
@@ -23,10 +25,15 @@ export default function AdminSidebar() {
   };
 
   return (
-    <aside className="w-[220px] shrink-0 bg-ui-base/60 border-r border-ui-sky/10 backdrop-blur-md flex flex-col min-h-[calc(100vh-60px)] sticky top-[60px]">
+    <aside className="w-[220px] shrink-0 bg-ui-base/60 border-r border-ui-sky/10 backdrop-blur-md flex flex-col h-[calc(100vh-60px)] sticky top-[60px] overflow-hidden">
+
+      
 
       {/* Header */}
-      <div className="px-5 pt-6 pb-4 border-b border-ui-sky/8">
+      <div className="px-5 pt-6 pb-4 border-b border-ui-sky/8 shrink-0">
+      
+      
+
         <div className="text-[9px] font-bold tracking-[0.18em] text-ui-danger font-mono mb-1">
           ADMIN PANEL
         </div>
@@ -49,40 +56,43 @@ export default function AdminSidebar() {
         </div>
       </div>
 
-      {/* Nav */}
-      <nav className="px-2.5 py-3 flex-1 flex flex-col gap-0.5">
-        {ADMIN_SECTIONS.map(item => {
-          const active = isActive(item);
-          return (
-            <button
-              key={item.path}
-              onClick={() => navigate(item.path)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-[10px] relative border-none cursor-pointer text-left transition-colors duration-150 w-full
-                ${active ? 'bg-ui-sky/8' : 'bg-transparent hover:bg-ui-sky/5'}`}
-            >
-              <span className={`text-[16px] shrink-0 transition-colors duration-200 ${active ? 'text-ui-sky' : 'text-ui-dim'}`}>
-                {item.icon}
-              </span>
+      {/* Scrollable middle section */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        {/* Nav */}
+        <nav className="px-2.5 py-3 flex flex-col gap-0.5">
+          {ADMIN_SECTIONS.map(item => {
+            const active = isActive(item);
+            return (
+              <button
+                key={item.path}
+                onClick={() => navigate(item.path)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-[10px] relative border-none cursor-pointer text-left transition-colors duration-150 w-full
+                  ${active ? 'bg-ui-sky/8' : 'bg-transparent hover:bg-ui-sky/5'}`}
+              >
+                <span className={`text-[16px] shrink-0 transition-colors duration-200 ${active ? 'text-ui-sky' : 'text-ui-dim'}`}>
+                  {item.icon}
+                </span>
 
-              <div className="flex-1 min-w-0">
-                <div className={`text-[13px] font-semibold tracking-[-0.01em] ${active ? 'text-ui-bright' : 'text-ui-muted'}`}>
-                  {item.label}
+                <div className="flex-1 min-w-0">
+                  <div className={`text-[13px] font-semibold tracking-[-0.01em] ${active ? 'text-ui-bright' : 'text-ui-muted'}`}>
+                    {item.label}
+                  </div>
+                  <div className="text-[10px] text-ui-dim/70 mt-px font-mono">
+                    {item.desc}
+                  </div>
                 </div>
-                <div className="text-[10px] text-ui-dim/70 mt-px font-mono">
-                  {item.desc}
-                </div>
-              </div>
 
-              {active && (
-                <div className="absolute right-0 top-[20%] bottom-[20%] w-[3px] rounded-sm bg-ui-sky" />
-              )}
-            </button>
-          );
-        })}
-      </nav>
+                {active && (
+                  <div className="absolute right-0 top-[20%] bottom-[20%] w-[3px] rounded-sm bg-ui-sky" />
+                )}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
 
-      {/* Footer */}
-      <div className="px-5 py-4 border-t border-ui-sky/8 space-y-3">
+      {/* Footer — always pinned to bottom */}
+      <div className="px-5 py-4 border-t border-ui-sky/8 space-y-3 shrink-0">
 
         {/* Profile */}
         {user && (

@@ -63,6 +63,40 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
+    public BookingResponseDTO updateBooking(Long bookingId, CreateBookingRequest request, String userEmail) {
+        Booking booking = getBookingEntityById(bookingId);
+
+        if (!booking.getUser().getEmail().equals(userEmail)) {
+            throw new AccessDeniedException("You are not allowed to edit this booking");
+        }
+
+        if (booking.getStatus() != Booking.BookingStatus.PENDING) {
+            throw new IllegalStateException("Only pending bookings can be edited");
+        }
+
+        if (Boolean.TRUE.equals(booking.getCheckedIn())) {
+            throw new IllegalStateException("Checked-in bookings cannot be edited");
+        }
+
+        Resource resource = getResourceById(request.getResourceId());
+
+        validateBookingRequest(request, resource);
+        validateUpdateConflict(bookingId, request, resource);
+        validateCapacity(resource, request.getAttendeesCount());
+
+        booking.setResource(resource);
+        booking.setBookingDate(request.getBookingDate());
+        booking.setStartTime(request.getStartTime());
+        booking.setEndTime(request.getEndTime());
+        booking.setPurpose(request.getPurpose());
+        booking.setAttendeesCount(request.getAttendeesCount());
+
+        Booking savedBooking = bookingRepository.save(booking);
+
+        return mapToResponse(savedBooking);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<BookingResponseDTO> getMyBookings(String userEmail) {
         User user = getUserByEmail(userEmail);
@@ -92,8 +126,12 @@ public class BookingServiceImpl implements BookingService {
         if (status == null || status.isBlank()) {
             bookings = bookingRepository.findAllByOrderByCreatedAtDesc();
         } else {
-            Booking.BookingStatus bookingStatus = Booking.BookingStatus.valueOf(status.toUpperCase());
-            bookings = bookingRepository.findByStatusOrderByCreatedAtDesc(bookingStatus);
+            try {
+                Booking.BookingStatus bookingStatus = Booking.BookingStatus.valueOf(status.toUpperCase());
+                bookings = bookingRepository.findByStatusOrderByCreatedAtDesc(bookingStatus);
+            } catch (IllegalArgumentException ex) {
+                throw new IllegalArgumentException("Invalid booking status: " + status);
+            }
         }
 
         return bookings.stream()
@@ -117,11 +155,7 @@ public class BookingServiceImpl implements BookingService {
         booking.setQrToken(qrToken);
         booking.setQrGeneratedAt(LocalDateTime.now());
 
-        // force immediate DB write
         Booking savedBooking = bookingRepository.saveAndFlush(booking);
-
-        Booking debugBooking = bookingRepository.findById(bookingId).orElseThrow();
-        System.out.println("DEBUG TOKEN FROM DB: " + debugBooking.getQrToken());
 
         String qrPayload = "BOOKING_TOKEN:" + savedBooking.getQrToken();
         byte[] qrCodeBytes = qrCodeService.generateQrCode(qrPayload, 300, 300);
@@ -131,7 +165,6 @@ public class BookingServiceImpl implements BookingService {
             savedBooking.setQrEmailSentAt(LocalDateTime.now());
             savedBooking = bookingRepository.saveAndFlush(savedBooking);
         } catch (Exception e) {
-            // keep approval and token saved even if email sending fails
             System.err.println("Failed to send booking approval email: " + e.getMessage());
         }
 
@@ -183,7 +216,9 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     public CheckInResponseDTO checkIn(String qrToken) {
-        Booking booking = bookingRepository.findByQrToken(qrToken)
+        String normalizedToken = normalizeQrToken(qrToken);
+
+        Booking booking = bookingRepository.findByQrToken(normalizedToken)
                 .orElseThrow(() -> new EntityNotFoundException("Invalid QR code"));
 
         if (booking.getStatus() != Booking.BookingStatus.APPROVED) {
@@ -220,6 +255,20 @@ public class BookingServiceImpl implements BookingService {
                 .checkedIn(savedBooking.getCheckedIn())
                 .checkedInAt(savedBooking.getCheckedInAt())
                 .build();
+    }
+
+    private String normalizeQrToken(String qrToken) {
+        if (qrToken == null || qrToken.isBlank()) {
+            throw new IllegalArgumentException("QR token is required");
+        }
+
+        String cleaned = qrToken.trim();
+
+        if (cleaned.startsWith("BOOKING_TOKEN:")) {
+            cleaned = cleaned.substring("BOOKING_TOKEN:".length()).trim();
+        }
+
+        return cleaned;
     }
 
     private void validateBookingRequest(CreateBookingRequest request, Resource resource) {
@@ -273,6 +322,22 @@ public class BookingServiceImpl implements BookingService {
 
     private void validateCreateConflict(CreateBookingRequest request, Resource resource) {
         boolean hasConflict = bookingRepository.existsOverlappingBooking(
+                resource.getId(),
+                request.getBookingDate(),
+                request.getStartTime(),
+                request.getEndTime(),
+                List.of(
+                        Booking.BookingStatus.PENDING,
+                        Booking.BookingStatus.APPROVED));
+
+        if (hasConflict) {
+            throw new IllegalStateException("This resource is already booked for the selected time range");
+        }
+    }
+
+    private void validateUpdateConflict(Long bookingId, CreateBookingRequest request, Resource resource) {
+        boolean hasConflict = bookingRepository.existsOverlappingBookingExcludingId(
+                bookingId,
                 resource.getId(),
                 request.getBookingDate(),
                 request.getStartTime(),

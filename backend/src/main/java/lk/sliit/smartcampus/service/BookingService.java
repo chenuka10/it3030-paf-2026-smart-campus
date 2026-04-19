@@ -11,6 +11,8 @@ public interface BookingService {
 
     BookingResponseDTO createBooking(CreateBookingRequest request, String userEmail);
 
+    BookingResponseDTO updateBooking(Long bookingId, CreateBookingRequest request, String userEmail);
+
     List<BookingResponseDTO> getMyBookings(String userEmail);
 
     BookingResponseDTO getBookingById(Long bookingId, String userEmail, boolean isAdmin);

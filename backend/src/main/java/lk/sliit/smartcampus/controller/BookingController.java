@@ -21,6 +21,7 @@ import lk.sliit.smartcampus.dto.CheckInRequestDTO;
 import lk.sliit.smartcampus.dto.CheckInResponseDTO;
 import lk.sliit.smartcampus.dto.CreateBookingRequest;
 import lk.sliit.smartcampus.dto.RejectBookingRequest;
+import lk.sliit.smartcampus.dto.ResourceUtilizationAnalyticsDTO;
 import lk.sliit.smartcampus.service.BookingService;
 import lombok.RequiredArgsConstructor;
 
@@ -88,6 +89,14 @@ public class BookingController {
             @RequestParam(required = false) String status) {
         return ResponseEntity.ok(
                 bookingService.getAllBookings(status));
+    }
+
+    @GetMapping("/analytics/resources")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResourceUtilizationAnalyticsDTO> getResourceUtilizationAnalytics(
+            @RequestParam(defaultValue = "30") int days) {
+        return ResponseEntity.ok(
+                bookingService.getResourceUtilizationAnalytics(days));
     }
 
     @PutMapping("/{bookingId}/approve")

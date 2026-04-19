@@ -4,15 +4,19 @@ import lk.sliit.smartcampus.security.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
 import java.util.List;
 
 @Configuration
@@ -22,8 +26,22 @@ import java.util.List;
 public class SecurityConfig {
 
     private final CustomOAuth2UserService oAuth2UserService;
-    private final OAuth2SuccessHandler    oAuth2SuccessHandler;
-    private final JwtAuthFilter           jwtAuthFilter;
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final JwtAuthFilter jwtAuthFilter;
+    private final CustomUserDetailsService userDetailsService;
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public DaoAuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        provider.setUserDetailsService(userDetailsService);
+        provider.setPasswordEncoder(passwordEncoder());
+        return provider;
+    }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -31,13 +49,12 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+            .authenticationProvider(authenticationProvider())
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                     "/auth/**", "/oauth2/**", "/login/**",
                     "/swagger-ui/**", "/v3/api-docs/**"
                 ).permitAll()
-                // SSE endpoint uses ?token= so Spring Security must not block it
-                // before the JwtAuthFilter runs — permitAll here, @PreAuthorize handles authz
                 .requestMatchers("/api/notifications/stream").permitAll()
                 .anyRequest().authenticated()
             )
@@ -53,14 +70,24 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("http://localhost:3000", "http://localhost:5173"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"));
-        config.setExposedHeaders(List.of("Authorization"));
+
+        config.setAllowedOriginPatterns(List.of(
+            "http://localhost:3000",
+            "http://localhost:5173"
+        ));
+
+        config.setAllowedMethods(List.of(
+            "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"
+        ));
+
+        config.setAllowedHeaders(List.of("*"));
+
+        config.setExposedHeaders(List.of(
+            "Authorization", "Content-Type", "Cache-Control", "Connection"
+        ));
+
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
-        // Required for SSE — browsers need to read the event-stream
-        config.setExposedHeaders(List.of("Content-Type", "Cache-Control", "Connection"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
